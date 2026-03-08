@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String      @id @default(uuid())
+  name         String?
+  email        String?     @unique
+  passwordHash String?
+  role         Role        @default(PLAYER)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  characters   Character[]
+  gmParties    Party[]     @relation("GMToParty")
+}
+
+model Character {
+  id                 String              @id @default(uuid())
+  userId             String
+  name               String
+  ageGroup           AgeGroup
+  archetypeId        String
+  motivation         String
+  trauma             String
+  darkSecret         String
+  physicalConditions Json                @default("{}")
+  mentalConditions   Json                @default("{}")
+  insightsDefects    Json                @default("{}")
+  experiencePoints   Int                 @default(0)
+  resources          Int                 @default(0)
+  capital            Int                 @default(0)
+  memento            String?
+  notes              String?
+  equipment          Json                @default("[]")
+  talents            Json                @default("[]")
+  archetype          Archetype           @relation(fields: [archetypeId], references: [id])
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attribute          CharacterAttribute?
+  skill              CharacterSkill?
+  parties            PartyMember[]
+}
+
+model CharacterAttribute {
+  id          String    @id @default(uuid())
+  characterId String    @unique
+  physique    Int       @default(2)
+  precision   Int       @default(2)
+  logic       Int       @default(2)
+  empathy     Int       @default(2)
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+}
+
+model CharacterSkill {
+  id            String    @id @default(uuid())
+  characterId   String    @unique
+  agility       Int       @default(0)
+  closeCombat   Int       @default(0)
+  force         Int       @default(0)
+  medicine      Int       @default(0)
+  rangedCombat  Int       @default(0)
+  stealth       Int       @default(0)
+  investigation Int       @default(0)
+  learning      Int       @default(0)
+  vigilance     Int       @default(0)
+  inspiration   Int       @default(0)
+  manipulation  Int       @default(0)
+  observation   Int       @default(0)
+  character     Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+}
+
+model Archetype {
+  id                   String      @id @default(uuid())
+  name                 String
+  mainAttribute        String
+  mainSkill            String
+  startingResourcesMin Int         @default(0)
+  startingResourcesMax Int         @default(0)
+  characters           Character[]
+}
+
+model Item {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  bonus        Int      @default(0)
+  availability Int      @default(0)
+  type         ItemType
+  damage       Int?
+  range        String?
+  skill        String?
+}
+
+model Talent {
+  id          String     @id @default(uuid())
+  name        String
+  description String
+  type        TalentType
+  archetypeId String?
+}
+
+model NPC {
+  id                String @id @default(uuid())
+  name              String
+  description       String
+  physique          Int    @default(2)
+  precision         Int    @default(2)
+  logic             Int    @default(2)
+  empathy           Int    @default(2)
+  physicalToughness Int    @default(0)
+  mentalToughness   Int    @default(0)
+  skills            Json   @default("{}")
+  weapons           Json   @default("[]")
+}
+
+model Vaesen {
+  id            String @id @default(uuid())
+  name          String
+  description   String
+  might         Int
+  bodyControl   Int
+  magic         Int
+  manipulation  Int
+  fear          Int
+  magicalPowers String
+  conditions    Json   @default("{}")
+  ritual        String
+  secret        String
+}
+
+model Party {
+  id           String          @id @default(uuid())
+  name         String
+  gmId         String
+  notes        String?
+  tasks        AdventureTask[]
+  headquarters Headquarters?
+  gm           User            @relation("GMToParty", fields: [gmId], references: [id], onDelete: Cascade)
+  members      PartyMember[]
+  maps         GameMap[]
+}
+
+model PartyMember {
+  id          String    @id @default(uuid())
+  partyId     String
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  party       Party     @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  @@unique([partyId, characterId])
+}
+
+model Headquarters {
+  id                String @id @default(uuid())
+  partyId           String @unique
+  name              String
+  developmentPoints Int    @default(0)
+  facilities        Json   @default("[]")
+  contacts          Json   @default("[]")
+  personnel         Json   @default("[]")
+  history           String
+  threats           Json   @default("[]")
+  party             Party  @relation(fields: [partyId], references: [id], onDelete: Cascade)
+}
+
+model GameMap {
+  id       String @id @default(uuid())
+  partyId  String
+  name     String
+  imageUrl String
+  markers  Json   @default("[]")
+  party    Party  @relation(fields: [partyId], references: [id], onDelete: Cascade)
+}
+
+model AdventureTask {
+  id          String     @id @default(uuid())
+  partyId     String
+  title       String
+  description String
+  status      TaskStatus @default(TODO)
+  createdAt   DateTime   @default(now())
+  party       Party      @relation(fields: [partyId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  PLAYER
+  GM
+  ADMIN
+}
+
+enum AgeGroup {
+  YOUNG
+  MIDDLE_AGED
+  OLD
+}
+
+enum ItemType {
+  WEAPON
+  ARMOR
+  GEAR
+  MAGIC
+}
+
+enum TalentType {
+  GENERAL
+  ARCHETYPE
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}

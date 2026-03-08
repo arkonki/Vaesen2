@@ -1,0 +1,49 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { 
+  Users, 
+  Castle, 
+  Map as AtlasIcon, 
+  ListTodo, 
+  StickyNote 
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const navigations = [
+  { name: "Party Management", href: "/management", icon: Users },
+  { name: "Headquarters", href: "/hq", icon: Castle },
+  { name: "Adventure Tasks", href: "/tasks", icon: ListTodo },
+  { name: "Atlas", href: "/atlas", icon: AtlasIcon },
+  { name: "Notes", href: "/notes", icon: StickyNote },
+];
+
+export default function SidebarNav({ partyId }: { partyId: string }) {
+  const pathname = usePathname();
+
+  return (
+    <nav className="space-y-1">
+      {navigations.map((item) => {
+        const fullHref = `/parties/${partyId}${item.href}`;
+        const isActive = pathname.startsWith(fullHref);
+        
+        return (
+          <Link
+            key={item.name}
+            href={fullHref}
+            className={cn(
+              "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200",
+              isActive 
+                ? "bg-neutral-800 text-white shadow-lg shadow-black/20 ring-1 ring-neutral-700" 
+                : "text-neutral-400 hover:text-white hover:bg-neutral-800/50"
+            )}
+          >
+            <item.icon className={cn("w-5 h-5", isActive ? "text-indigo-400" : "text-neutral-500")} />
+            {item.name}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
