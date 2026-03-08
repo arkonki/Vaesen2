@@ -37,6 +37,7 @@ model Character {
   capital            Int                 @default(0)
   memento            String?
   notes              String?
+  relationships      String?
   equipment          Json                @default("[]")
   talents            Json                @default("[]")
   archetype          Archetype           @relation(fields: [archetypeId], references: [id])
@@ -44,6 +45,7 @@ model Character {
   attribute          CharacterAttribute?
   skill              CharacterSkill?
   parties            PartyMember[]
+  inventory          CharacterInventory[]
 }
 
 model CharacterAttribute {
@@ -94,6 +96,22 @@ model Item {
   damage       Int?
   range        String?
   skill        String?
+  inventory    CharacterInventory[]
+  partyStash   PartyStashItem[]
+}
+
+model CharacterInventory {
+  id          String    @id @default(uuid())
+  characterId String
+  itemId      String
+  quantity    Int       @default(1)
+  notes       String?
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  item        Item      @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([characterId, itemId])
+  @@index([characterId])
+  @@index([itemId])
 }
 
 model Talent {
@@ -139,10 +157,80 @@ model Party {
   gmId         String
   notes        String?
   tasks        AdventureTask[]
+  mysteries    Mystery[]
   headquarters Headquarters?
   gm           User            @relation("GMToParty", fields: [gmId], references: [id], onDelete: Cascade)
   members      PartyMember[]
   maps         GameMap[]
+  stashItems   PartyStashItem[]
+}
+
+model PartyStashItem {
+  id       String @id @default(uuid())
+  partyId   String
+  itemId    String
+  quantity  Int    @default(1)
+  notes     String?
+  party     Party  @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  item      Item   @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([partyId, itemId])
+  @@index([partyId])
+  @@index([itemId])
+}
+
+model Mystery {
+  id          String           @id @default(uuid())
+  partyId      String
+  title        String
+  summary      String
+  hook         String?
+  aftermath    String?
+  status       MysteryStatus   @default(PREP)
+  startedAt    DateTime        @default(now())
+  completedAt  DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  party        Party           @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  clues        MysteryClue[]
+  entities     MysteryEntity[]
+  locations    MysteryLocation[]
+
+  @@index([partyId, status])
+}
+
+model MysteryClue {
+  id          String   @id @default(uuid())
+  mysteryId   String
+  content     String
+  isResolved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  mystery     Mystery  @relation(fields: [mysteryId], references: [id], onDelete: Cascade)
+
+  @@index([mysteryId])
+}
+
+model MysteryEntity {
+  id          String            @id @default(uuid())
+  mysteryId   String
+  name        String
+  type        MysteryEntityType
+  details     String?
+  createdAt   DateTime          @default(now())
+  mystery     Mystery           @relation(fields: [mysteryId], references: [id], onDelete: Cascade)
+
+  @@index([mysteryId, type])
+}
+
+model MysteryLocation {
+  id          String   @id @default(uuid())
+  mysteryId   String
+  name        String
+  details     String?
+  createdAt   DateTime @default(now())
+  mystery     Mystery  @relation(fields: [mysteryId], references: [id], onDelete: Cascade)
+
+  @@index([mysteryId])
 }
 
 model PartyMember {
@@ -216,4 +304,17 @@ enum TaskStatus {
   IN_PROGRESS
   COMPLETED
   FAILED
+}
+
+enum MysteryStatus {
+  PREP
+  ACTIVE
+  RESOLVED
+  ARCHIVED
+}
+
+enum MysteryEntityType {
+  NPC
+  VAESEN
+  PERSON
 }

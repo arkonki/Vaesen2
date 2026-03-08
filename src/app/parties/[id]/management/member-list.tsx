@@ -5,6 +5,9 @@ import { UserPlus, UserMinus, ShieldAlert, Heart, Brain, Trash2 } from "lucide-r
 import { enrollCharacter, removeCharacter } from "../../actions";
 import { cn } from "@/lib/utils";
 
+const PHYSICAL_CONDITION_KEYS = ["exhausted", "battered", "wounded", "broken"];
+const MENTAL_CONDITION_KEYS = ["angry", "frightened", "hopeless", "broken"];
+
 export default function MemberList({ party, isGM }: { party: any, isGM: boolean }) {
   const [inviteId, setInviteId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -62,8 +65,8 @@ export default function MemberList({ party, isGM }: { party: any, isGM: boolean 
           const physicalConditions = char.physicalConditions || {};
           const mentalConditions = char.mentalConditions || {};
           
-          const physicalCount = Object.values(physicalConditions).filter(v => v === true).length;
-          const mentalCount = Object.values(mentalConditions).filter(v => v === true).length;
+          const physicalCount = PHYSICAL_CONDITION_KEYS.filter((key) => physicalConditions[key] === true).length;
+          const mentalCount = MENTAL_CONDITION_KEYS.filter((key) => mentalConditions[key] === true).length;
           
           const isBroken = physicalCount >= 3 || mentalCount >= 3;
 

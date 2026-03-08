@@ -5,18 +5,22 @@ import { usePathname } from "next/navigation";
 import { 
   Users, 
   Castle, 
-  Map as AtlasIcon, 
+  ScrollText,
   ListTodo, 
-  StickyNote 
+  StickyNote,
+  Package,
+  Search
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navigations = [
-  { name: "Party Management", href: "/management", icon: Users },
+  { name: "Management", href: "/management", icon: Users },
+  { name: "Mysteries", href: "/mysteries", icon: Search },
+  { name: "Goals", href: "/goals", icon: ListTodo },
+  { name: "Equipment", href: "/equipment", icon: Package },
   { name: "Headquarters", href: "/hq", icon: Castle },
-  { name: "Adventure Tasks", href: "/tasks", icon: ListTodo },
-  { name: "Atlas", href: "/atlas", icon: AtlasIcon },
   { name: "Notes", href: "/notes", icon: StickyNote },
+  { name: "Atlas", href: "/atlas", icon: ScrollText },
 ];
 
 export default function SidebarNav({ partyId }: { partyId: string }) {

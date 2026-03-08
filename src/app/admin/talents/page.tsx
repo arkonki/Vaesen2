@@ -5,12 +5,17 @@ import TalentForm from "./form";
 import { deleteTalent } from "@/app/admin/actions";
 import { revalidatePath } from "next/cache";
 
-export default async function TalentsPage({ searchParams }: { searchParams: { action?: string, id?: string } }) {
+export default async function TalentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ action?: string; id?: string }>;
+}) {
+  const query = await searchParams;
   const talents = await prisma.talent.findMany();
   const archetypes = await prisma.archetype.findMany();
 
-  const isCreating = searchParams.action === 'create';
-  const editingId = searchParams.id;
+  const isCreating = query.action === "create";
+  const editingId = query.id;
   const editingTalent = editingId ? talents.find(t => t.id === editingId) : null;
 
   async function handleDelete(data: FormData) {

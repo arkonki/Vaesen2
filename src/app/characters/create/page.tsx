@@ -8,7 +8,7 @@ export default async function CreateCharacterPage() {
   const session = await getServerSession(authOptions);
   
   if (!session) {
-    redirect("/api/auth/signin");
+    redirect("/login");
   }
 
   // Fetch all necessary data for the wizard steps

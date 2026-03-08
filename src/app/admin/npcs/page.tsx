@@ -5,11 +5,16 @@ import NPCForm from "./form";
 import { deleteNPC } from "@/app/admin/actions";
 import { revalidatePath } from "next/cache";
 
-export default async function NPCsPage({ searchParams }: { searchParams: { action?: string, id?: string } }) {
+export default async function NPCsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ action?: string; id?: string }>;
+}) {
+  const query = await searchParams;
   const npcs = await prisma.nPC.findMany();
 
-  const isCreating = searchParams.action === 'create';
-  const editingId = searchParams.id;
+  const isCreating = query.action === "create";
+  const editingId = query.id;
   const editingNPC = editingId ? npcs.find(n => n.id === editingId) : null;
 
   async function handleDelete(data: FormData) {

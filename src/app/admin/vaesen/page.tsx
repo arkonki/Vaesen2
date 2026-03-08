@@ -5,11 +5,16 @@ import VaesenForm from "./form";
 import { deleteVaesen } from "@/app/admin/actions";
 import { revalidatePath } from "next/cache";
 
-export default async function VaesenPage({ searchParams }: { searchParams: { action?: string, id?: string } }) {
+export default async function VaesenPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ action?: string; id?: string }>;
+}) {
+  const query = await searchParams;
   const vaesenList = await prisma.vaesen.findMany();
 
-  const isCreating = searchParams.action === 'create';
-  const editingId = searchParams.id;
+  const isCreating = query.action === "create";
+  const editingId = query.id;
   const editingVaesen = editingId ? vaesenList.find(v => v.id === editingId) : null;
 
   async function handleDelete(data: FormData) {

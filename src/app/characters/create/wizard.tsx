@@ -85,8 +85,8 @@ export default function Wizard({ archetypes, talents, items, userId }: any) {
   const submit = async () => {
     setLoading(true);
     try {
-      await createPlayerCharacter({ ...data, userId });
-      router.push("/dashboard"); // Or wherever the player lands
+      const characterId = await createPlayerCharacter({ ...data, userId });
+      router.push(`/characters/${characterId}`);
     } catch (e: any) {
       alert("Error: " + e.message);
       setLoading(false);

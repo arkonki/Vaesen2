@@ -4,7 +4,8 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { ItemType, TalentType } from "@prisma/client";
+import { ItemType, Role, TalentType } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -126,4 +127,53 @@ export async function deleteVaesen(id: string) {
   await requireAdmin();
   await prisma.vaesen.delete({ where: { id } });
   revalidatePath("/admin/vaesen");
+}
+
+// ------ USERS ------ //
+
+export async function createUser(data: { name?: string; email: string; role: Role; password: string }) {
+  await requireAdmin();
+
+  const passwordHash = await bcrypt.hash(data.password, 10);
+
+  const created = await prisma.user.create({
+    data: {
+      name: data.name || null,
+      email: data.email,
+      role: data.role,
+      passwordHash,
+    },
+  });
+
+  revalidatePath("/admin/users");
+  return created;
+}
+
+export async function updateUserProfile(data: { id: string; name?: string; email: string; role: Role }) {
+  await requireAdmin();
+
+  const updated = await prisma.user.update({
+    where: { id: data.id },
+    data: {
+      name: data.name || null,
+      email: data.email,
+      role: data.role,
+    },
+  });
+
+  revalidatePath("/admin/users");
+  return updated;
+}
+
+export async function resetUserPassword(id: string, password: string) {
+  await requireAdmin();
+
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  await prisma.user.update({
+    where: { id },
+    data: { passwordHash },
+  });
+
+  revalidatePath("/admin/users");
 }

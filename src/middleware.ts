@@ -6,6 +6,10 @@ export default withAuth(
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
+    if (!token && (path === "/" || path.startsWith("/characters") || path.startsWith("/parties") || path.startsWith("/compendium"))) {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+
     // Admin Routes
     if (path.startsWith("/admin") && token?.role !== "ADMIN") {
       return NextResponse.redirect(new URL("/", req.url));
@@ -24,5 +28,5 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: ["/admin/:path*", "/gm/:path*"],
+  matcher: ["/", "/admin/:path*", "/gm/:path*", "/characters/:path*", "/parties/:path*", "/compendium/:path*"],
 };

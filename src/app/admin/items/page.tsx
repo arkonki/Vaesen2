@@ -5,11 +5,16 @@ import ItemForm from "./form";
 import { deleteItem } from "@/app/admin/actions";
 import { revalidatePath } from "next/cache";
 
-export default async function ItemsPage({ searchParams }: { searchParams: { action?: string, id?: string } }) {
+export default async function ItemsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ action?: string; id?: string }>;
+}) {
+  const query = await searchParams;
   const items = await prisma.item.findMany();
 
-  const isCreating = searchParams.action === 'create';
-  const editingId = searchParams.id;
+  const isCreating = query.action === "create";
+  const editingId = query.id;
   const editingItem = editingId ? items.find(i => i.id === editingId) : null;
 
   async function handleDelete(data: FormData) {

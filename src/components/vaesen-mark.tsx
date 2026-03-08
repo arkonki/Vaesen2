@@ -1,0 +1,54 @@
+export default function VaesenMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 512 512" aria-hidden="true" className={className} fill="none">
+      <path
+        d="M256 238 L256 164 C256 114 232 84 190 82 C144 80 110 118 114 158 C118 196 154 218 180 198 C198 184 198 158 178 146 C160 136 144 148 144 166"
+        stroke="currentColor"
+        strokeWidth="18"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M238 256 L162 256 C112 256 82 282 82 324 C82 370 118 400 158 396 C196 392 218 356 198 330 C184 312 158 312 146 332 C136 350 148 366 166 366"
+        stroke="currentColor"
+        strokeWidth="18"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M256 274 L256 348 C256 398 282 430 324 430 C370 430 400 394 396 354 C392 316 356 294 330 314 C312 328 312 354 332 366 C350 376 366 364 366 346"
+        stroke="currentColor"
+        strokeWidth="18"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M274 256 L350 256 C400 256 430 230 430 188 C430 142 394 112 354 116 C316 120 294 156 314 182 C328 200 354 200 366 180 C376 162 364 146 346 146"
+        stroke="currentColor"
+        strokeWidth="18"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M210 210 Q230 226 256 226 Q282 226 302 210"
+        stroke="currentColor"
+        strokeWidth="14"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M210 302 Q230 286 256 286 Q282 286 302 302"
+        stroke="currentColor"
+        strokeWidth="14"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M224 256 H288" stroke="currentColor" strokeWidth="20" strokeLinecap="round" />
+      <path d="M256 224 V288" stroke="currentColor" strokeWidth="20" strokeLinecap="round" />
+      <circle cx="224" cy="224" r="6" fill="currentColor" />
+      <circle cx="288" cy="224" r="6" fill="currentColor" />
+      <circle cx="224" cy="288" r="6" fill="currentColor" />
+      <circle cx="288" cy="288" r="6" fill="currentColor" />
+    </svg>
+  );
+}

@@ -5,11 +5,16 @@ import ArchetypeForm from "./form";
 import { deleteArchetype } from "@/app/admin/actions";
 import { revalidatePath } from "next/cache";
 
-export default async function ArchetypesPage({ searchParams }: { searchParams: { action?: string, id?: string } }) {
+export default async function ArchetypesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ action?: string; id?: string }>;
+}) {
+  const query = await searchParams;
   const archetypes = await prisma.archetype.findMany();
 
-  const isCreating = searchParams.action === 'create';
-  const editingId = searchParams.id;
+  const isCreating = query.action === "create";
+  const editingId = query.id;
   const editingArchetype = editingId ? archetypes.find(a => a.id === editingId) : null;
 
   async function handleDelete(data: FormData) {
