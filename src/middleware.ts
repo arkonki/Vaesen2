@@ -1,32 +1,33 @@
-import { withAuth } from "next-auth/middleware";
-import { NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { NextRequest, NextResponse } from "next/server";
 
-export default withAuth(
-  function middleware(req) {
-    const token = req.nextauth.token;
-    const path = req.nextUrl.pathname;
-
-    if (!token && (path === "/" || path.startsWith("/characters") || path.startsWith("/parties") || path.startsWith("/compendium"))) {
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
-
-    // Admin Routes
-    if (path.startsWith("/admin") && token?.role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
-
-    // GM Routes (accessible by GM and ADMIN)
-    if (path.startsWith("/gm") && token?.role !== "GM" && token?.role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
-  },
-  {
-    pages: { signIn: "/login" },
-    callbacks: {
-      authorized: ({ token }) => Boolean(token?.id && token.role && !token.invalid && typeof token.sessionVersion === "number"),
-    },
+export default async function middleware(req: NextRequest) {
+  // A reverse proxy can expose localhost as req.nextUrl.origin. Never redirect to it
+  // when the deployment has a configured public URL, or trust forwarded host input.
+  const origin = new URL(process.env.NEXTAUTH_URL || req.url).origin;
+  const redirect = (path: string) => NextResponse.redirect(new URL(path, origin));
+  if (!process.env.NEXTAUTH_SECRET) {
+    return redirect("/api/auth/error?error=Configuration");
   }
-);
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const authorized = Boolean(
+    token && typeof token.id === "string" && token.id &&
+    ["PLAYER", "GM", "ADMIN"].includes(String(token.role)) && !token.invalid &&
+    typeof token.sessionVersion === "number" && Number.isInteger(token.sessionVersion) && token.sessionVersion >= 0,
+  );
+  const path = req.nextUrl.pathname;
+
+  if (!authorized) {
+    const login = new URL("/login", origin);
+    login.searchParams.set("callbackUrl", path + req.nextUrl.search);
+    return NextResponse.redirect(login);
+  }
+
+  if (path.startsWith("/admin") && token?.role !== "ADMIN") return redirect("/");
+  if (path.startsWith("/gm") && !["GM", "ADMIN"].includes(String(token?.role))) return redirect("/");
+
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: ["/", "/admin/:path*", "/gm/:path*", "/characters/:path*", "/parties/:path*", "/compendium/:path*"],

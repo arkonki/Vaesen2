@@ -65,6 +65,8 @@ Production applies migrations before starting the app and runs the standalone se
 
 This is a portable-build workflow, not a guarantee of FreeBSD support. No root access or Docker is needed on the hosting account. Node.js 22+ (including Node 24) and PostgreSQL access are required. The provider must also allow persistent Node processes and route your HTTPS app domain to the process's listening port. SSH access alone does not supply either capability. Ask the provider before exposing the application.
 
+If you keep a Git checkout on the server, use one canonical directory (for example `apps/Vaesen2`) and place private runtime releases, logs, backups and the `current` symlink under its ignored `.deploy/` directory. Do not create a second application directory differing only by case. `git pull` updates source; the running FreeBSD app is updated by building/uploading a portable release and restarting its process. Middleware uses `NEXTAUTH_URL` as its trusted redirect origin so reverse-proxy requests cannot send users to an internal localhost address.
+
 Do not run `npm ci`, `prisma generate`, or `prisma migrate` on FreeBSD for this workflow. The Prisma CLI still needs a native schema engine. Build and migrate on your Mac or a Linux machine, and upload the finished runtime. An engine-free Prisma runtime uses JavaScript/WebAssembly and the PostgreSQL `pg` adapter; it does not download a FreeBSD query engine.
 
 ### 1. Prepare The Hosting Database

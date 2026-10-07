@@ -64,11 +64,28 @@ try {
     ] },
   } });
   const anonymous = client();
-  assert.match((await anonymous("/")).headers.get("location") || "", /login|\/api\/auth\/signin/);
+  for (const route of ["/", "/characters", "/parties", "/compendium", "/admin"]) {
+    const response = await anonymous(route);
+    const location = new URL(response.headers.get("location") || "", base);
+    assert.equal(location.origin, new URL(process.env.NEXTAUTH_URL || base).origin, `Wrong public redirect origin for ${route}`);
+    assert.equal(location.pathname, "/login");
+    assert.equal(location.searchParams.get("callbackUrl"), route);
+  }
   assert.equal((await signIn(anonymous, player.email, "wrong-password")).status, 401);
 
   const playerRequest = client();
   assert.equal((await signIn(playerRequest, player.email.toUpperCase())).status, 200);
+  const signedInLogin = await playerRequest("/login");
+  const loginLocation = signedInLogin.headers.get("location");
+  if (loginLocation) {
+    const destination = new URL(loginLocation, base);
+    assert.equal(destination.origin, new URL(process.env.NEXTAUTH_URL || base).origin);
+    assert.equal(destination.pathname, "/");
+  } else {
+    // Next.js can stream a page before redirecting via a relative refresh tag.
+    assert.equal(signedInLogin.status, 200);
+    assert.match(await signedInLogin.text(), /<meta[^>]+http-equiv="refresh"[^>]+content="\d+;url=\/"/);
+  }
   const management = await (await playerRequest(`/parties/${party.id}/management`)).text();
   assert.ok(management.includes(prefix));
   for (const secret of ["passwordHash", hash, `${prefix}-private-secret`, `${prefix}-private-notes`]) assert.ok(!management.includes(secret), `Management leaked ${secret}`);
@@ -108,13 +125,28 @@ try {
   assert.ok(gmMysteries.includes(`${prefix}-private-clue`));
   assert.ok(gmMysteries.includes(`${prefix}-private-mystery`));
 
+  const logoutRequest = client();
+  assert.equal((await signIn(logoutRequest, player.email)).status, 200);
+  const logoutCsrf = await (await logoutRequest("/api/auth/csrf")).json();
+  const logout = await logoutRequest("/api/auth/signout", {
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ csrfToken: logoutCsrf.csrfToken, callbackUrl: `${base}/login`, json: "true" }),
+  });
+  assert.equal(logout.status, 200);
+  assert.equal((await logout.json()).url, `${base}/login`);
+  assert.ok(!(await (await logoutRequest("/api/auth/session")).json()).user?.id);
+  const signedOutHome = await logoutRequest("/");
+  const signedOutTarget = new URL(signedOutHome.headers.get("location") || "", base);
+  assert.equal(signedOutTarget.origin, new URL(process.env.NEXTAUTH_URL || base).origin);
+  assert.equal(signedOutTarget.pathname, "/login");
+
   await prisma.user.update({ where: { id: player.id }, data: { sessionVersion: { increment: 1 } } });
   const revoked = await (await playerRequest("/api/auth/session")).json();
   assert.ok(!revoked.user?.id);
   await prisma.user.update({ where: { id: admin.id }, data: { role: "PLAYER", sessionVersion: { increment: 1 } } });
   const demoted = await (await adminRequest("/api/auth/session")).json();
   assert.ok(!demoted.user?.id);
-  console.log("HTTP smoke checks passed: login, invalid credentials, role gates, data redaction, note sanitization, and session revocation.");
+  console.log("HTTP smoke checks passed: login redirects, logout, invalid credentials, role gates, data redaction, note sanitization, and session revocation.");
 } finally {
   await prisma.user.deleteMany({ where: { id: { in: users } } });
   if (content.archetype) await prisma.archetype.delete({ where: { id: content.archetype } });
