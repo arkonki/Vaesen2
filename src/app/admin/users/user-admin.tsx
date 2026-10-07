@@ -55,33 +55,33 @@ export default function UserAdmin({ users }: { users: UserRecord[] }) {
 
   return (
     <div className="space-y-8">
-      <form onSubmit={handleCreate} className="grid gap-4 rounded-2xl border border-white/10 bg-neutral-900/70 p-6 lg:grid-cols-4">
+      <form onSubmit={handleCreate} className="grid gap-4 rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-6 lg:grid-cols-4">
         <div>
-          <label className="mb-2 block text-sm font-medium text-neutral-300">Name</label>
+          <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]">Name</label>
           <input
             value={createForm.name}
             onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })}
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none"
+            className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
             placeholder="Astrid"
           />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium text-neutral-300">Email</label>
+          <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]">Email</label>
           <input
             required
             type="email"
             value={createForm.email}
             onChange={(event) => setCreateForm({ ...createForm, email: event.target.value })}
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none"
+            className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
             placeholder="astrid@example.com"
           />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium text-neutral-300">Role</label>
+          <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]">Role</label>
           <select
             value={createForm.role}
             onChange={(event) => setCreateForm({ ...createForm, role: event.target.value as Role })}
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none"
+            className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
           >
             {ROLE_OPTIONS.map((role) => (
               <option key={role} value={role}>
@@ -91,19 +91,21 @@ export default function UserAdmin({ users }: { users: UserRecord[] }) {
           </select>
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium text-neutral-300">Password</label>
+          <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]">Password</label>
           <input
             required
             type="password"
+            minLength={12}
+            maxLength={72}
             value={createForm.password}
             onChange={(event) => setCreateForm({ ...createForm, password: event.target.value })}
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none"
+            className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
             placeholder="Temporary password"
           />
         </div>
 
         {error ? (
-          <div className="lg:col-span-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <div className="lg:col-span-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-[var(--ledger-danger)]">
             {error}
           </div>
         ) : null}
@@ -112,7 +114,7 @@ export default function UserAdmin({ users }: { users: UserRecord[] }) {
           <button
             type="submit"
             disabled={busyKey === "create"}
-            className="rounded-full border border-amber-300/30 bg-amber-500/10 px-5 py-3 text-sm font-semibold text-amber-100 transition-colors hover:bg-amber-500/20 disabled:opacity-60"
+            className="rounded-full border border-[var(--ledger-accent)]/65 bg-[rgba(127,48,40,0.12)] px-5 py-3 text-sm font-semibold text-[var(--ledger-accent)] transition-colors hover:bg-[rgba(127,48,40,0.12)] disabled:opacity-60"
           >
             {busyKey === "create" ? "Creating..." : "Create User"}
           </button>
@@ -121,7 +123,7 @@ export default function UserAdmin({ users }: { users: UserRecord[] }) {
 
       <div className="space-y-4">
         {users.map((user) => (
-          <article key={user.id} className="rounded-2xl border border-white/10 bg-neutral-950/60 p-6">
+          <article key={user.id} className="rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-6">
             <UserRow
               user={user}
               password={passwords[user.id] ?? ""}
@@ -153,8 +155,10 @@ function UserRow({
   const [name, setName] = useState(user.name ?? "");
   const [email, setEmail] = useState(user.email ?? "");
   const [role, setRole] = useState<Role>(user.role);
+  const [error, setError] = useState("");
 
   async function handleSaveProfile() {
+    setError("");
     setBusyKey(`profile-${user.id}`);
     try {
       await updateUserProfile({
@@ -164,6 +168,8 @@ function UserRow({
         role,
       });
       router.refresh();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Profile update failed");
     } finally {
       setBusyKey(null);
     }
@@ -174,11 +180,14 @@ function UserRow({
       return;
     }
 
+    setError("");
     setBusyKey(`password-${user.id}`);
     try {
       await resetUserPassword(user.id, password);
       setPassword("");
       router.refresh();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Password reset failed");
     } finally {
       setBusyKey(null);
     }
@@ -186,12 +195,13 @@ function UserRow({
 
   return (
     <div className="space-y-4">
+      {error && <p role="alert" className="text-[var(--ledger-danger)]">{error}</p>}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-white">{user.name || user.email || "Unnamed User"}</h2>
-          <p className="mt-1 text-sm text-neutral-500">Created {new Date(user.createdAt).toLocaleDateString()}</p>
+          <h2 className="text-xl font-bold text-[var(--ledger-ink)]">{user.name || user.email || "Unnamed User"}</h2>
+          <p className="mt-1 text-sm text-[var(--ledger-ink-soft)]">Created {new Date(user.createdAt).toLocaleDateString()}</p>
         </div>
-        <div className="flex gap-4 text-xs uppercase tracking-[0.2em] text-neutral-500">
+        <div className="flex gap-4 text-xs uppercase tracking-[0.2em] text-[var(--ledger-ink-soft)]">
           <span>{user._count.characters} Characters</span>
           <span>{user._count.gmParties} Parties</span>
         </div>
@@ -201,20 +211,20 @@ function UserRow({
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
-          className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none"
+          className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
           placeholder="Name"
         />
         <input
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none"
+          className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
           placeholder="Email"
         />
         <select
           value={role}
           onChange={(event) => setRole(event.target.value as Role)}
-          className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none"
+          className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
         >
           {ROLE_OPTIONS.map((option) => (
             <option key={option} value={option}>
@@ -226,7 +236,7 @@ function UserRow({
           type="button"
           disabled={busyKey === `profile-${user.id}`}
           onClick={handleSaveProfile}
-          className="rounded-full border border-white/10 px-5 py-3 text-sm text-white transition-colors hover:border-white/20 disabled:opacity-60"
+          className="rounded-full border border-[var(--ledger-line)]/55 px-5 py-3 text-sm text-[var(--ledger-ink)] transition-colors hover:border-[var(--ledger-line)]/55 disabled:opacity-60"
         >
           Save Profile
         </button>
@@ -237,14 +247,14 @@ function UserRow({
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none"
+          className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
           placeholder="Set a new password"
         />
         <button
           type="button"
           disabled={!password || busyKey === `password-${user.id}`}
           onClick={handleResetPassword}
-          className="rounded-full border border-red-400/20 px-5 py-3 text-sm text-red-200 transition-colors hover:bg-red-500/10 disabled:opacity-60"
+          className="rounded-full border border-red-400/20 px-5 py-3 text-sm text-[var(--ledger-danger)] transition-colors hover:bg-red-500/10 disabled:opacity-60"
         >
           Reset Password
         </button>

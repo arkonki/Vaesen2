@@ -4,14 +4,23 @@ import { useState, useRef } from "react";
 import { MapPin, Plus, Trash2, Maximize2, Minimize2, Image as ImageIcon } from "lucide-react";
 import { createMap, saveMapMarker } from "../../actions";
 import { cn } from "@/lib/utils";
+import type { GameMap } from "@prisma/client";
+import Image from "next/image";
+import { jsonRecord } from "@/lib/json-fields";
 
-export default function MapViewer({ partyId, initialMaps, isGM }: { partyId: string, initialMaps: any[], isGM: boolean }) {
+function markersFromJson(value: unknown): Array<{ x: number; y: number; label: string }> {
+  if (!Array.isArray(value)) return [];
+  return value.map(jsonRecord).filter((marker) => typeof marker.x === "number" && typeof marker.y === "number" && typeof marker.label === "string")
+    .map((marker) => ({ x: Number(marker.x), y: Number(marker.y), label: String(marker.label) }));
+}
+
+export default function MapViewer({ partyId, initialMaps, isGM }: { partyId: string, initialMaps: GameMap[], isGM: boolean }) {
   const [maps, setMaps] = useState(initialMaps);
   const [activeMapIndex, setActiveMapIndex] = useState(0);
   const [isAddingMap, setIsAddingMap] = useState(false);
   const [newMap, setNewMap] = useState({ name: "", imageUrl: "" });
   const [isZoomed, setIsZoomed] = useState(false);
-  
+
   const activeMap = maps[activeMapIndex];
   const mapRef = useRef<HTMLDivElement>(null);
 
@@ -33,9 +42,9 @@ export default function MapViewer({ partyId, initialMaps, isGM }: { partyId: str
     const label = prompt("Enter a label for this location:");
     if (label === null) return;
 
-    const markers = [...(activeMap.markers as any[]), { x, y, label }];
+    const markers = [...markersFromJson(activeMap.markers), { x, y, label }];
     const updatedMap = await saveMapMarker(activeMap.id, markers);
-    
+
     const newMaps = [...maps];
     newMaps[activeMapIndex] = updatedMap;
     setMaps(newMaps);
@@ -43,9 +52,9 @@ export default function MapViewer({ partyId, initialMaps, isGM }: { partyId: str
 
   async function handleDeleteMarker(idx: number) {
     if (!activeMap) return;
-    const markers = (activeMap.markers as any[]).filter((_, i) => i !== idx);
+    const markers = markersFromJson(activeMap.markers).filter((_, i) => i !== idx);
     const updatedMap = await saveMapMarker(activeMap.id, markers);
-    
+
     const newMaps = [...maps];
     newMaps[activeMapIndex] = updatedMap;
     setMaps(newMaps);
@@ -62,9 +71,9 @@ export default function MapViewer({ partyId, initialMaps, isGM }: { partyId: str
               onClick={() => setActiveMapIndex(idx)}
               className={cn(
                 "px-4 py-2 rounded-lg text-sm font-bold border transition-all",
-                activeMapIndex === idx 
-                  ? "bg-neutral-800 border-indigo-500 text-white" 
-                  : "bg-neutral-900/50 border-neutral-800 text-neutral-500 hover:text-neutral-300"
+                activeMapIndex === idx
+                  ? "bg-[var(--ledger-paper-deep)] border-[var(--ledger-accent)]/65 text-[var(--ledger-ink)]"
+                  : "bg-[var(--ledger-surface-strong)] border-[var(--ledger-line)]/55 text-[var(--ledger-ink-soft)] hover:text-[var(--ledger-ink)]"
               )}
             >
               {map.name}
@@ -73,7 +82,7 @@ export default function MapViewer({ partyId, initialMaps, isGM }: { partyId: str
           {isGM && (
             <button
               onClick={() => setIsAddingMap(true)}
-              className="px-3 py-2 rounded-lg bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-600/30 transition-all"
+              className="px-3 py-2 rounded-lg bg-[rgba(127,48,40,0.12)] border border-[var(--ledger-accent)]/65 text-[var(--ledger-accent)] hover:bg-[rgba(127,48,40,0.12)] transition-all"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -83,7 +92,7 @@ export default function MapViewer({ partyId, initialMaps, isGM }: { partyId: str
         {activeMap && (
           <button
             onClick={() => setIsZoomed(!isZoomed)}
-            className="p-2 bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-400 hover:text-white"
+            className="p-2 bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-lg text-[var(--ledger-ink-soft)] hover:text-[var(--ledger-ink)]"
           >
             {isZoomed ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
           </button>
@@ -91,38 +100,38 @@ export default function MapViewer({ partyId, initialMaps, isGM }: { partyId: str
       </div>
 
       {isAddingMap && (
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
-          <h3 className="text-lg font-bold text-white mb-4">Add New Map</h3>
+        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-xl p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+          <h3 className="text-lg font-bold text-[var(--ledger-ink)] mb-4">Add New Map</h3>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <input
               type="text"
               placeholder="Map Name (e.g., Upsala City)"
-              className="bg-neutral-950 border border-neutral-700 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+              className="bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--ledger-focus)]"
               value={newMap.name}
               onChange={(e) => setNewMap({ ...newMap, name: e.target.value })}
             />
             <input
               type="text"
               placeholder="Image URL (Public or Uploaded URL)"
-              className="bg-neutral-950 border border-neutral-700 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+              className="bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--ledger-focus)]"
               value={newMap.imageUrl}
               onChange={(e) => setNewMap({ ...newMap, imageUrl: e.target.value })}
             />
           </div>
           <div className="flex justify-end gap-3 text-sm">
-            <button onClick={() => setIsAddingMap(false)} className="text-neutral-500">Cancel</button>
-            <button onClick={handleAddMap} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold">Add Map</button>
+            <button onClick={() => setIsAddingMap(false)} className="text-[var(--ledger-ink-soft)]">Cancel</button>
+            <button onClick={handleAddMap} className="bg-[rgba(127,48,40,0.12)] text-[var(--ledger-ink)] px-6 py-2 rounded-lg font-bold">Add Map</button>
           </div>
         </div>
       )}
 
       {/* Map Display */}
       <div className={cn(
-        "flex-1 relative bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden group shadow-2xl transition-all duration-500",
+        "flex-1 relative bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-2xl overflow-hidden group shadow-2xl transition-all duration-500",
         isZoomed ? "fixed inset-8 z-[100] shadow-[0_0_100px_rgba(0,0,0,0.8)]" : ""
       )}>
         {activeMap ? (
-          <div 
+          <div
             ref={mapRef}
             onClick={handleMapClick}
             className={cn(
@@ -130,14 +139,14 @@ export default function MapViewer({ partyId, initialMaps, isGM }: { partyId: str
               isGM ? "cursor-crosshair" : "cursor-default"
             )}
           >
-            <img 
-              src={activeMap.imageUrl} 
+            <Image unoptimized width={1600} height={1200}
+              src={activeMap.imageUrl}
               alt={activeMap.name}
               className="w-full h-full object-contain pointer-events-none"
             />
-            
+
             {/* Markers */}
-            {(activeMap.markers as any[]).map((marker, idx) => (
+            {markersFromJson(activeMap.markers).map((marker, idx) => (
               <div
                 key={idx}
                 className="absolute transform -translate-x-1/2 -translate-y-full hover:z-50"
@@ -145,15 +154,15 @@ export default function MapViewer({ partyId, initialMaps, isGM }: { partyId: str
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="group/marker relative">
-                  <MapPin className="w-6 h-6 text-indigo-500 drop-shadow-[0_0_5px_rgba(99,102,241,0.5)] fill-indigo-500/20" />
-                  
+                  <MapPin className="w-6 h-6 text-[var(--ledger-accent)] drop-shadow-[0_0_5px_rgba(99,102,241,0.5)] fill-indigo-500/20" />
+
                   {/* Label Tooltip */}
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-neutral-950 border border-neutral-800 rounded text-[10px] font-bold text-white whitespace-nowrap shadow-xl opacity-0 group-hover/marker:opacity-100 transition-opacity">
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded text-[10px] font-bold text-[var(--ledger-ink)] whitespace-nowrap shadow-xl opacity-0 group-hover/marker:opacity-100 transition-opacity">
                     {marker.label}
                     {isGM && (
-                      <button 
+                      <button
                         onClick={() => handleDeleteMarker(idx)}
-                        className="ml-2 text-red-400 hover:text-red-300 transition-colors"
+                        className="ml-2 text-[var(--ledger-danger)] hover:text-[var(--ledger-danger)] transition-colors"
                       >
                         <Trash2 className="w-2.5 h-2.5 inline" />
                       </button>
@@ -164,7 +173,7 @@ export default function MapViewer({ partyId, initialMaps, isGM }: { partyId: str
             ))}
           </div>
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-neutral-600 animate-pulse">
+          <div className="w-full h-full flex flex-col items-center justify-center text-[var(--ledger-ink-soft)] animate-pulse">
             <ImageIcon className="w-24 h-24 mb-4 opacity-20" />
             <p className="font-serif italic">No maps have been catalogued in the Atlas yet.</p>
           </div>
@@ -172,7 +181,7 @@ export default function MapViewer({ partyId, initialMaps, isGM }: { partyId: str
       </div>
 
       {isZoomed && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/80 z-[90] backdrop-blur-sm"
           onClick={() => setIsZoomed(false)}
         />

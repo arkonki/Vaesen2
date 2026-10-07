@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Dices, History, Minus, Plus, RotateCcw, X } from "lucide-react";
 import VaesenMark from "@/components/vaesen-mark";
 
@@ -15,7 +16,7 @@ const ROLL_ANIMATION_MS = 1200;
 const ROLL_TICK_MS = 90;
 
 function randomDie() {
-  return Math.ceil(Math.random() * 6);
+  return Math.floor(Math.random() * 6) + 1;
 }
 
 type RollHistoryEntry = {
@@ -27,12 +28,27 @@ type RollHistoryEntry = {
   timestamp: string;
 };
 
-export default function DiceRollerModal({
-  initialDiceCount,
-  title = "Vaesen Dice Roller",
-  triggerLabel = "Open Dice Roller",
-  triggerVariant = "ledger",
-}: DiceRollerModalProps) {
+const DiceContext = createContext<((request: DiceRollerModalProps) => void) | null>(null);
+
+export function DiceRollerProvider({ children }: { children: ReactNode }) {
+  const [request, setRequest] = useState<DiceRollerModalProps | null>(null);
+  return <DiceContext.Provider value={(request) => setRequest({ ...request })}>
+    <div id="society-app-content">{children}</div>
+    <DiceRollerDialog request={request} />
+  </DiceContext.Provider>;
+}
+
+export default function DiceRollerModal(props: DiceRollerModalProps) {
+  const open = useContext(DiceContext);
+  return <button type="button" className={`ledger-roll-trigger${props.triggerVariant === "header" ? " is-header" : ""}`} onClick={() => open?.(props)}>
+    <Dices className="h-4 w-4" />{props.triggerLabel || "Open Dice Roller"}
+  </button>;
+}
+
+function DiceRollerDialog({ request }: { request: DiceRollerModalProps | null }) {
+  const initialDiceCount = Math.min(50, Math.max(0, Math.trunc(request?.initialDiceCount || 0)));
+  const title = request?.title || "Vaesen Dice Roller";
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [diceCount, setDiceCount] = useState(Math.max(0, initialDiceCount));
   const [results, setResults] = useState<number[]>([]);
@@ -44,17 +60,37 @@ export default function DiceRollerModal({
   const rollingTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
-    setDiceCount(Math.max(0, initialDiceCount));
-  }, [initialDiceCount]);
+    if (request) {
+      setDiceCount(Math.min(50, Math.max(0, Math.trunc(request.initialDiceCount || 0))));
+      setIsOpen(true);
+    }
+  }, [request]);
 
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    const content = document.getElementById("society-app-content");
+    const previousInert = content?.inert ?? false;
+    if (content) content.inert = true;
+    dialogRef.current?.querySelector<HTMLElement>("button")?.focus();
+
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setIsOpen(false);
+      }
+      if (event.key === "Tab") {
+        const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]') ?? []);
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (event.shiftKey && (document.activeElement === first || !dialogRef.current?.contains(document.activeElement))) {
+          event.preventDefault(); last?.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || !dialogRef.current?.contains(document.activeElement))) {
+          event.preventDefault(); first?.focus();
+        }
       }
     }
 
@@ -63,7 +99,9 @@ export default function DiceRollerModal({
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
+      document.body.style.overflow = previousOverflow;
+      if (content) content.inert = previousInert;
+      if (previousFocus?.isConnected) previousFocus.focus();
     };
   }, [isOpen]);
 
@@ -123,7 +161,7 @@ export default function DiceRollerModal({
         ...current,
       ].slice(0, 12));
       setIsRolling(false);
-    }, ROLL_ANIMATION_MS);
+    }, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : ROLL_ANIMATION_MS);
   }
 
   function handleRoll() {
@@ -148,20 +186,10 @@ export default function DiceRollerModal({
     setHistory([]);
   }
 
-  return (
-    <>
-      <button
-        type="button"
-        className={`ledger-roll-trigger${triggerVariant === "header" ? " is-header" : ""}`}
-        onClick={() => setIsOpen(true)}
-      >
-        <Dices className="h-4 w-4" />
-        {triggerLabel}
-      </button>
-
-      {isOpen ? (
+  return isOpen ? createPortal(
         <div className="dice-modal-backdrop" onClick={() => setIsOpen(false)} role="presentation">
           <div
+            ref={dialogRef}
             className="dice-modal"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
@@ -187,7 +215,7 @@ export default function DiceRollerModal({
                     <Minus className="h-4 w-4" />
                   </button>
                   <span className="dice-count-value">{diceCount}</span>
-                  <button type="button" onClick={() => setDiceCount((value) => value + 1)} disabled={isRolling}>
+                  <button type="button" onClick={() => setDiceCount((value) => Math.min(50, value + 1))} disabled={isRolling}>
                     <Plus className="h-4 w-4" />
                   </button>
                 </div>
@@ -209,11 +237,11 @@ export default function DiceRollerModal({
               </div>
             </div>
 
-            <div className="dice-results-grid" aria-live="polite">
+            <div className="dice-results-grid" aria-live={isRolling ? "off" : "polite"}>
               {results.length > 0 ? (
                 results.map((result, index) => (
                   <DieFace
-                    key={`${rollCount}-${index}-${result}`}
+                    key={`${rollCount}-${index}`}
                     value={result}
                     rolling={isRolling}
                   />
@@ -246,7 +274,7 @@ export default function DiceRollerModal({
             <div className="dice-history">
               <div className="dice-history-header">
                 <p className="dice-modal-kicker">Roll History</p>
-                <p className="dice-history-note">Latest 12 results. Push rerolls only non-success dice and locks 6s.</p>
+                <p className="dice-history-note">Latest 12 results. Push rerolls only non-success dice and locks 6s. Conditions are not applied automatically.</p>
               </div>
 
               {history.length > 0 ? (
@@ -277,9 +305,7 @@ export default function DiceRollerModal({
             </div>
           </div>
         </div>
-      ) : null}
-    </>
-  );
+    , document.body) : null;
 }
 
 function DieFace({ value, rolling }: { value: number; rolling: boolean }) {

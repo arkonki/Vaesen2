@@ -21,8 +21,9 @@ export default withAuth(
     }
   },
   {
+    pages: { signIn: "/login" },
     callbacks: {
-      authorized: ({ token }) => !!token,
+      authorized: ({ token }) => Boolean(token?.id && token.role && !token.invalid && typeof token.sessionVersion === "number"),
     },
   }
 );

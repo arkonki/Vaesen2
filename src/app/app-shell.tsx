@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { BookOpen, Home, LogOut, ScrollText, Shield, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import VaesenMark from "@/components/vaesen-mark";
-import DiceRollerModal from "@/components/dice-roller-modal";
+import DiceRollerModal, { DiceRollerProvider } from "@/components/dice-roller-modal";
 
 type AppShellProps = {
   role?: string;
@@ -34,6 +34,7 @@ export default function AppShell({ role, userName, children }: AppShellProps) {
   const links = navigation.filter((item) => role && item.roles.includes(role));
 
   return (
+    <DiceRollerProvider>
     <div className="min-h-screen bg-[linear-gradient(180deg,rgba(255,248,239,0.55),rgba(205,183,152,0.12))] text-[var(--ledger-ink)]">
       <header className="sticky top-0 z-20 border-b border-[var(--ledger-frame)]/60 bg-[rgba(241,232,216,0.94)] backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
@@ -47,7 +48,7 @@ export default function AppShell({ role, userName, children }: AppShellProps) {
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-2 md:flex">
+          <nav className="hidden items-center gap-2 xl:flex">
             {links.map((item) => {
               const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
               return (
@@ -85,7 +86,7 @@ export default function AppShell({ role, userName, children }: AppShellProps) {
         </div>
       </header>
 
-      <div className="border-b border-[var(--ledger-frame)]/35 bg-[rgba(241,232,216,0.7)] px-4 py-3 md:hidden">
+      <div className="border-b border-[var(--ledger-frame)]/35 bg-[rgba(241,232,216,0.7)] px-4 py-3 xl:hidden">
         <nav className="flex flex-wrap gap-2">
           {links.map((item) => {
             const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
@@ -110,5 +111,6 @@ export default function AppShell({ role, userName, children }: AppShellProps) {
 
       {children}
     </div>
+    </DiceRollerProvider>
   );
 }

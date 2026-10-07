@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
+import { getAppSession } from "@/lib/auth";
+import { canManageParty, partyCharacterSelect, publicUserSelect } from "./security";
 
 export async function getRequiredSession() {
-  const session = await getServerSession(authOptions);
+  const session = await getAppSession();
 
   if (!session) {
     redirect("/login");
@@ -29,14 +29,10 @@ export async function getPartyAccess(partyId: string) {
   const party = await prisma.party.findUnique({
     where: { id: partyId },
     include: {
-      gm: true,
+      gm: { select: publicUserSelect },
       members: {
         include: {
-          character: {
-            include: {
-              archetype: true,
-            },
-          },
+          character: { select: partyCharacterSelect },
         },
       },
       headquarters: true,
@@ -48,7 +44,7 @@ export async function getPartyAccess(partyId: string) {
   }
 
   const isAdmin = session.user.role === "ADMIN";
-  const isGM = party.gmId === session.user.id;
+  const isGM = canManageParty(session.user, party.gmId);
   const isMember = party.members.some((member) => member.character.userId === session.user.id);
 
   if (!isAdmin && !isGM && !isMember) {
@@ -87,7 +83,7 @@ export async function getCharacterAccess(characterId: string) {
 
   const isAdmin = session.user.role === "ADMIN";
   const isOwner = character.userId === session.user.id;
-  const gmMembership = isOwner || isAdmin ? null : await prisma.partyMember.findFirst({
+  const gmMembership = isOwner || isAdmin || session.user.role !== "GM" ? null : await prisma.partyMember.findFirst({
     where: {
       characterId,
       party: {

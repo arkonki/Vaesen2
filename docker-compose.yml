@@ -3,9 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: development
     ports:
-      - "3000:3000"
-      - "5555:5555"
+      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:5555:5555"
     volumes:
       - .:/app
       - /app/node_modules
@@ -13,21 +14,30 @@ services:
     environment:
       - DATABASE_URL=postgresql://vaesen:vaesenpass@db:5432/vaesen_db?schema=public
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-vaesen-dev-secret-change-this}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in .env}
+      - SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL:-admin@vaesen.local}
+      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-}
+      - SEED_ADMIN_NAME=${SEED_ADMIN_NAME:-Admin}
     depends_on:
-      - db
-    command: sh -c "npm install --legacy-peer-deps && npx prisma generate && npm run dev"
+      db:
+        condition: service_healthy
+    command: sh -c "npm ci --legacy-peer-deps && npx prisma generate && npm run dev -- --hostname 0.0.0.0"
 
   db:
     image: postgres:15-alpine
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: vaesen
       POSTGRES_PASSWORD: vaesenpass
       POSTGRES_DB: vaesen_db
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vaesen -d vaesen_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   pg_data:

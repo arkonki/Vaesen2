@@ -23,14 +23,14 @@ export default async function CharactersPage() {
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-amber-200/80">Character Ledger</p>
-            <h1 className="mt-2 text-4xl font-black tracking-tight text-white">Your Hunters</h1>
-            <p className="mt-2 text-sm text-neutral-400">
+            <p className="text-xs uppercase tracking-[0.3em] text-[var(--ledger-accent)]">Character Ledger</p>
+            <h1 className="mt-2 text-4xl font-black tracking-tight text-[var(--ledger-ink)]">Your Hunters</h1>
+            <p className="mt-2 text-sm text-[var(--ledger-ink-soft)]">
               Open sheets, review party assignments, and start new investigators.
             </p>
           </div>
 
-          <Link href="/characters/create" className="rounded-full border border-amber-300/30 bg-amber-500/10 px-5 py-3 text-sm font-semibold text-amber-100 transition-colors hover:bg-amber-500/20">
+          <Link href="/characters/create" className="rounded-full border border-[var(--ledger-accent)]/65 bg-[rgba(127,48,40,0.12)] px-5 py-3 text-sm font-semibold text-[var(--ledger-accent)] transition-colors hover:bg-[rgba(127,48,40,0.12)]">
             Create Character
           </Link>
         </div>
@@ -38,28 +38,28 @@ export default async function CharactersPage() {
         {characters.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {characters.map((character) => (
-              <Link key={character.id} href={`/characters/${character.id}`} className="rounded-2xl border border-white/10 bg-neutral-950/60 p-5 transition-colors hover:border-amber-400/30">
-                <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">{character.archetype.name}</p>
-                <h2 className="mt-2 text-2xl font-bold text-white">{character.name}</h2>
-                <p className="mt-2 text-sm text-neutral-400">
+              <Link key={character.id} href={`/characters/${character.id}`} className="rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-5 transition-colors hover:border-[var(--ledger-accent)]/65">
+                <p className="text-xs uppercase tracking-[0.25em] text-[var(--ledger-ink-soft)]">{character.archetype.name}</p>
+                <h2 className="mt-2 text-2xl font-bold text-[var(--ledger-ink)]">{character.name}</h2>
+                <p className="mt-2 text-sm text-[var(--ledger-ink-soft)]">
                   {character.ageGroup.replaceAll("_", " ")} · XP {character.experiencePoints}
                 </p>
-                <div className="mt-4 flex flex-wrap gap-2 text-xs text-neutral-500">
+                <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--ledger-ink-soft)]">
                   {character.parties.length > 0 ? (
                     character.parties.map((membership) => (
-                      <span key={membership.id} className="rounded-full border border-white/10 px-2 py-1">
+                      <span key={membership.id} className="rounded-full border border-[var(--ledger-line)]/55 px-2 py-1">
                         {membership.party.name}
                       </span>
                     ))
                   ) : (
-                    <span className="rounded-full border border-white/10 px-2 py-1">No party</span>
+                    <span className="rounded-full border border-[var(--ledger-line)]/55 px-2 py-1">No party</span>
                   )}
                 </div>
               </Link>
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-white/10 bg-neutral-950/40 p-6 text-sm text-neutral-400">
+          <div className="rounded-2xl border border-dashed border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-6 text-sm text-[var(--ledger-ink-soft)]">
             You have not created any characters yet.
           </div>
         )}

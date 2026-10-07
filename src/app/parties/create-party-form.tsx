@@ -33,25 +33,25 @@ export default function CreatePartyForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-white/10 bg-neutral-950/60 p-5">
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-5">
       <div>
-        <h2 className="text-xl font-bold text-white">Create a Party</h2>
-        <p className="mt-1 text-sm text-neutral-400">Set up a new Society cell and initialize its headquarters.</p>
+        <h2 className="text-xl font-bold text-[var(--ledger-ink)]">Create a Party</h2>
+        <p className="mt-1 text-sm text-[var(--ledger-ink-soft)]">Set up a new Society cell and initialize its headquarters.</p>
       </div>
 
       <div>
-        <label className="mb-2 block text-sm font-medium text-neutral-300">Party Name</label>
+        <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]">Party Name</label>
         <input
           required
           value={name}
           onChange={(event) => setName(event.target.value)}
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-colors focus:border-amber-400/30"
+          className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none transition-colors focus:border-[var(--ledger-accent)]/65"
           placeholder="Upsala Chapter"
         />
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-[var(--ledger-danger)]">
           {error}
         </div>
       ) : null}
@@ -59,7 +59,7 @@ export default function CreatePartyForm() {
       <button
         type="submit"
         disabled={isLoading}
-        className="rounded-full border border-amber-300/30 bg-amber-500/10 px-5 py-3 text-sm font-semibold text-amber-100 transition-colors hover:bg-amber-500/20 disabled:opacity-60"
+        className="rounded-full border border-[var(--ledger-accent)]/65 bg-[rgba(127,48,40,0.12)] px-5 py-3 text-sm font-semibold text-[var(--ledger-accent)] transition-colors hover:bg-[rgba(127,48,40,0.12)] disabled:opacity-60"
       >
         {isLoading ? "Creating..." : "Create Party"}
       </button>

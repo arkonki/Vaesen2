@@ -36,31 +36,31 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="mb-1 block text-sm font-medium text-neutral-300">Email</label>
+        <label className="mb-1 block text-sm font-medium text-[var(--ledger-ink)]">Email</label>
         <input
           required
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-colors focus:border-amber-400/40"
+          className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none transition-colors focus:border-[var(--ledger-accent)]/65"
           placeholder="you@example.com"
         />
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-neutral-300">Password</label>
+        <label className="mb-1 block text-sm font-medium text-[var(--ledger-ink)]">Password</label>
         <input
           required
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-colors focus:border-amber-400/40"
+          className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none transition-colors focus:border-[var(--ledger-accent)]/65"
           placeholder="Password"
         />
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-[var(--ledger-danger)]">
           {error}
         </div>
       ) : null}
@@ -68,7 +68,7 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 font-semibold text-amber-100 transition-colors hover:bg-amber-500/20 disabled:opacity-60"
+        className="w-full rounded-xl border border-[var(--ledger-accent)]/65 bg-[rgba(127,48,40,0.12)] px-4 py-3 font-semibold text-[var(--ledger-accent)] transition-colors hover:bg-[rgba(127,48,40,0.12)] disabled:opacity-60"
       >
         {isLoading ? "Signing in..." : "Enter the Society"}
       </button>

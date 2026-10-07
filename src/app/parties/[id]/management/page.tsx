@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import MemberList from "./member-list";
 import { getPartyAccess } from "@/lib/access";
+import { partyCharacterSelect } from "@/lib/security";
 
 export default async function ManagementPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,13 +14,10 @@ export default async function ManagementPage({ params }: { params: Promise<{ id:
       members: {
         include: {
           character: {
-            include: {
-              archetype: true,
-            }
+            select: partyCharacterSelect,
           },
         },
       },
-      gm: true,
     },
   });
 
@@ -28,8 +26,8 @@ export default async function ManagementPage({ params }: { params: Promise<{ id:
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-white">Party Management</h1>
-        <p className="text-neutral-400 mt-2">
+        <h1 className="text-3xl font-bold text-[var(--ledger-ink)]">Party Management</h1>
+        <p className="text-[var(--ledger-ink-soft)] mt-2">
           {access.isGM ? "Manage members and recruits for the current party." : "Review the investigators currently attached to this party."}
         </p>
       </div>

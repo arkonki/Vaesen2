@@ -1,0 +1,59 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: vaesen
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: vaesen_db
+    volumes:
+      - production_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vaesen -d vaesen_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      target: development
+    environment:
+      DATABASE_URL: postgresql://vaesen:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/vaesen_db?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["npx", "prisma", "migrate", "deploy"]
+
+  app:
+    build:
+      context: .
+      target: production
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      DATABASE_URL: postgresql://vaesen:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/vaesen_db?schema=public
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?Set NEXTAUTH_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  bootstrap:
+    profiles: ["bootstrap"]
+    build:
+      context: .
+      target: development
+    environment:
+      DATABASE_URL: postgresql://vaesen:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/vaesen_db?schema=public
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@vaesen.local}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-Admin}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["npm", "run", "db:seed"]
+
+volumes:
+  production_pg_data:

@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vaesen Society Ledger
 
-## Getting Started
+A signed-in Vaesen character and campaign hub built with Next.js, NextAuth credentials, Prisma, and PostgreSQL.
 
-First, run the development server:
+## Development Setup
 
-```bash
+Requires Node.js 22 and PostgreSQL, or Docker Compose.
+
+Create `.env` from `.env.example`, then configure:
+
+- `DATABASE_URL`: PostgreSQL URL. Use `localhost:5432` outside Docker; Compose supplies the internal database URL.
+- `NEXTAUTH_SECRET`: a random secret generated with `openssl rand -hex 32`.
+- `NEXTAUTH_URL`: `http://localhost:3000` for local development.
+- `SEED_ADMIN_EMAIL`, `SEED_ADMIN_NAME`: initial administrator identity.
+- `SEED_ADMIN_PASSWORD`: required only when creating an administrator; at least 12 characters and at most 72 UTF-8 bytes.
+
+```sh
+npm ci --legacy-peer-deps
+npx prisma generate
+npx prisma migrate deploy
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Docker Development
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```sh
+docker compose up --build -d
+docker compose exec app npx prisma migrate deploy
+docker compose exec app npm run db:seed
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open http://localhost:3000. Accounts are admin-created; there is no public signup. Use the configured bootstrap identity, not a built-in password.
 
-## Learn More
+The development stack binds app, database, and optional Prisma Studio ports to localhost. It waits for the database health check but does not apply migrations automatically.
 
-To learn more about Next.js, take a look at the following resources:
+## Updating An Existing Installation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Back up the database before applying migrations. This stabilization release adds session versions, invitations, mystery visibility, and HQ ledger entries.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```sh
+docker compose build app
+docker compose run --rm app npx prisma migrate deploy
+docker compose up -d
+```
 
-## Deploy on Vercel
+Existing sessions must sign in again. Existing mysteries and their clues/entities/locations default to GM-only. A GM must explicitly reveal them; PREP mysteries remain hidden even when marked published.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Re-running the seed preserves existing accounts and existing named content. Passwords are not printed. An intentional bootstrap reset requires `SEED_RESET_ADMIN_PASSWORD=true` and a new `SEED_ADMIN_PASSWORD`; this also invalidates old sessions. Normal password resets should use Admin > Users.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Production Docker
+
+Use `docker-compose.prod.yml` as a standalone Compose file, not as an override for the development file. It uses a separate `production_pg_data` volume; development data is not copied automatically.
+
+Set a strong, URL-safe `POSTGRES_PASSWORD` (for example `openssl rand -hex 32`), a separate random `NEXTAUTH_SECRET`, and the deployed HTTPS `NEXTAUTH_URL`. Never commit `.env`.
+
+```sh
+docker compose -f docker-compose.prod.yml up --build -d
+docker compose -f docker-compose.prod.yml --profile bootstrap run --rm bootstrap
+```
+
+Production applies migrations before starting the app and runs the standalone server as a non-root user. Put an HTTPS reverse proxy in front of localhost:3000. The production database is not exposed to the host. Backups, login-rate limiting at the reverse proxy, and host monitoring remain deployment responsibilities.
+
+## Permissions And Campaign Data
+
+- Players edit their own characters and view parties they belong to.
+- The owning GM and administrators manage shared party state.
+- Recruiting someone else's character sends an invitation. The owner accepts it on Home before the recruiting GM gets character-sheet access. Administrators can enroll directly.
+- NPC/Vaesen compendium content is excluded from player queries.
+- Mysteries are private until published; clues, entities, and locations have individual reveal controls. HQ threats are GM-only.
+- Notes autosave on character sheets. Shared party notes are GM-edited and sanitized.
+- HQ prices are server-owned; awards and purchases have a Development Point ledger.
+- Dice history is shared across app triggers during the signed-in session, but is not a multiplayer roll feed. Pushing does not automatically apply conditions.
+
+## Verification
+
+```sh
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm audit --omit=dev
+```
+
+Unit tests run without a database. Integration tests run only when `TEST_DATABASE_URL` points to a separate database whose name ends in `_test`; never use your application database.
+
+```sh
+DATABASE_URL="$TEST_DATABASE_URL" npx prisma migrate deploy
+npm run test:integration
+```
+
+For real HTTP login and redaction checks, run the production app against that same test database on port 3001, then run `npm run test:http`. Override `SMOKE_BASE_URL` to check a test Docker container instead. The HTTP checks also verify that role changes invalidate existing cookies.
+
+The integration suite creates and removes its own fixture records and covers cross-party mutations, invitation consent, character validation, session revocation, and concurrent HQ purchases. CI runs migrations, unit/integration tests, and HTTP smoke checks against disposable PostgreSQL.
+
+Five development-only advisories currently remain in ESLint's `braces` dependency chain. The production dependency audit is checked separately; no automatic major-version downgrade is applied to silence development tooling advisories.

@@ -20,9 +20,9 @@ export default async function EquipmentPage({ params }: { params: Promise<{ id: 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-white">Equipment</h1>
-        <p className="mt-2 text-neutral-400">
-          Shared party stash and communal assets. Character-bound gear remains on each investigator's sheet.
+        <h1 className="text-3xl font-bold text-[var(--ledger-ink)]">Equipment</h1>
+        <p className="mt-2 text-[var(--ledger-ink-soft)]">
+          Shared party stash and communal assets. Character-bound gear remains on each investigator&apos;s sheet.
         </p>
       </div>
 

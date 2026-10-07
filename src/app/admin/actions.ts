@@ -1,14 +1,15 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAppSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { ItemType, Role, TalentType } from "@prisma/client";
+import { ItemType, Role, TalentType, Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { publicUserSelect } from "@/lib/security";
+import { passwordSchema, userProfileSchema } from "@/lib/user-validation";
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getAppSession();
   if (!session || session.user.role !== "ADMIN") {
     throw new Error("Unauthorized: Admin access required.");
   }
@@ -65,7 +66,7 @@ export async function deleteTalent(id: string) {
 
 export async function createItem(data: { name: string; description: string; bonus: number; availability: number; type: ItemType; damage?: number | null; range?: string | null; skill?: string | null }) {
   await requireAdmin();
-  Object.keys(data).forEach(k => (data as any)[k] === "" && ((data as any)[k] = null));
+  data = { ...data, skill: data.skill || null, range: data.range || null };
   const created = await prisma.item.create({ data });
   revalidatePath("/admin/items");
   return created;
@@ -73,7 +74,7 @@ export async function createItem(data: { name: string; description: string; bonu
 
 export async function updateItem(id: string, data: { name: string; description: string; bonus: number; availability: number; type: ItemType; damage?: number | null; range?: string | null; skill?: string | null }) {
   await requireAdmin();
-  Object.keys(data).forEach(k => (data as any)[k] === "" && ((data as any)[k] = null));
+  data = { ...data, skill: data.skill || null, range: data.range || null };
   const updated = await prisma.item.update({ where: { id }, data });
   revalidatePath("/admin/items");
   return updated;
@@ -87,14 +88,14 @@ export async function deleteItem(id: string) {
 
 // ------ NPCS ------ //
 
-export async function createNPC(data: any) {
+export async function createNPC(data: Prisma.NPCCreateInput) {
   await requireAdmin();
   const created = await prisma.nPC.create({ data });
   revalidatePath("/admin/npcs");
   return created;
 }
 
-export async function updateNPC(id: string, data: any) {
+export async function updateNPC(id: string, data: Prisma.NPCUpdateInput) {
   await requireAdmin();
   const updated = await prisma.nPC.update({ where: { id }, data });
   revalidatePath("/admin/npcs");
@@ -109,14 +110,14 @@ export async function deleteNPC(id: string) {
 
 // ------ VAESEN ------ //
 
-export async function createVaesen(data: any) {
+export async function createVaesen(data: Prisma.VaesenCreateInput) {
   await requireAdmin();
   const created = await prisma.vaesen.create({ data });
   revalidatePath("/admin/vaesen");
   return created;
 }
 
-export async function updateVaesen(id: string, data: any) {
+export async function updateVaesen(id: string, data: Prisma.VaesenUpdateInput) {
   await requireAdmin();
   const updated = await prisma.vaesen.update({ where: { id }, data });
   revalidatePath("/admin/vaesen");
@@ -134,15 +135,20 @@ export async function deleteVaesen(id: string) {
 export async function createUser(data: { name?: string; email: string; role: Role; password: string }) {
   await requireAdmin();
 
-  const passwordHash = await bcrypt.hash(data.password, 10);
+  const profile = userProfileSchema.parse(data);
+  if (await prisma.user.findFirst({ where: { email: { equals: profile.email, mode: "insensitive" } }, select: { id: true } })) {
+    throw new Error("This email address is already in use");
+  }
+  const passwordHash = await bcrypt.hash(passwordSchema.parse(data.password), 12);
 
   const created = await prisma.user.create({
     data: {
-      name: data.name || null,
-      email: data.email,
-      role: data.role,
+      name: profile.name || null,
+      email: profile.email,
+      role: profile.role,
       passwordHash,
     },
+    select: publicUserSelect,
   });
 
   revalidatePath("/admin/users");
@@ -152,14 +158,22 @@ export async function createUser(data: { name?: string; email: string; role: Rol
 export async function updateUserProfile(data: { id: string; name?: string; email: string; role: Role }) {
   await requireAdmin();
 
-  const updated = await prisma.user.update({
-    where: { id: data.id },
-    data: {
-      name: data.name || null,
-      email: data.email,
-      role: data.role,
-    },
-  });
+  const profile = userProfileSchema.parse(data);
+  const updated = await prisma.$transaction(async (tx) => {
+    if (await tx.user.findFirst({ where: { id: { not: data.id }, email: { equals: profile.email, mode: "insensitive" } }, select: { id: true } })) {
+      throw new Error("This email address is already in use");
+    }
+    const user = await tx.user.findUniqueOrThrow({ where: { id: data.id } });
+    if (user.role === "ADMIN" && profile.role !== "ADMIN" &&
+      await tx.user.count({ where: { role: "ADMIN" } }) <= 1) {
+      throw new Error("The last administrator cannot be demoted");
+    }
+    return tx.user.update({
+      where: { id: data.id },
+      data: { ...profile, name: profile.name || null, sessionVersion: { increment: 1 } },
+      select: publicUserSelect,
+    });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   revalidatePath("/admin/users");
   return updated;
@@ -168,11 +182,11 @@ export async function updateUserProfile(data: { id: string; name?: string; email
 export async function resetUserPassword(id: string, password: string) {
   await requireAdmin();
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(passwordSchema.parse(password), 12);
 
   await prisma.user.update({
     where: { id },
-    data: { passwordHash },
+    data: { passwordHash, sessionVersion: { increment: 1 } },
   });
 
   revalidatePath("/admin/users");

@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
 import { ItemType, TalentType } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
+import { getAppSession } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import CharacterSheet from "./sheet";
 
@@ -59,7 +58,7 @@ export default async function CharacterSheetPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getAppSession();
   if (!session) {
     redirect("/login");
   }

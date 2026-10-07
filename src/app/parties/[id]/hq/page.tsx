@@ -10,8 +10,7 @@ export default async function HQPage({ params }: { params: Promise<{ id: string 
   const party = await prisma.party.findUnique({
     where: { id: id },
     include: {
-      headquarters: true,
-      gm: true,
+      headquarters: { include: { ledgerEntries: { orderBy: { createdAt: "desc" }, take: 30 } } },
     },
   });
 
@@ -21,18 +20,18 @@ export default async function HQPage({ params }: { params: Promise<{ id: string 
     <div className="space-y-8">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold text-white">Headquarters</h1>
-          <p className="text-neutral-400 mt-2">{party.headquarters.name}</p>
+          <h1 className="text-3xl font-bold text-[var(--ledger-ink)]">Headquarters</h1>
+          <p className="text-[var(--ledger-ink-soft)] mt-2">{party.headquarters.name}</p>
         </div>
-        <div className="bg-indigo-600/10 border border-indigo-500/30 rounded-lg px-4 py-2 flex items-center gap-3">
-          <span className="text-indigo-400 font-bold text-xl">{party.headquarters.developmentPoints}</span>
-          <span className="text-xs text-indigo-300 uppercase tracking-widest font-semibold leading-none">
+        <div className="bg-[rgba(127,48,40,0.12)] border border-[var(--ledger-accent)]/65 rounded-lg px-4 py-2 flex items-center gap-3">
+          <span className="text-[var(--ledger-accent)] font-bold text-xl">{party.headquarters.developmentPoints}</span>
+          <span className="text-xs text-[var(--ledger-accent)] uppercase tracking-widest font-semibold leading-none">
             Development<br/>Points
           </span>
         </div>
       </div>
 
-      <HQDashboard hq={party.headquarters} isGM={access.isGM} />
+      <HQDashboard hq={{ ...party.headquarters, threats: access.isGM ? party.headquarters.threats : [] }} isGM={access.isGM} />
     </div>
   );
 }

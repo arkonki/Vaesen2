@@ -20,8 +20,8 @@ export default async function AtlasPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="space-y-8 h-full flex flex-col">
       <div>
-        <h1 className="text-3xl font-bold text-white">Atlas</h1>
-        <p className="text-neutral-400 mt-2">Explore the Mythic North and mark your path.</p>
+        <h1 className="text-3xl font-bold text-[var(--ledger-ink)]">Atlas</h1>
+        <p className="text-[var(--ledger-ink-soft)] mt-2">Explore the Mythic North and mark your path.</p>
       </div>
 
       <MapViewer partyId={id} initialMaps={party.maps} isGM={access.isGM} />

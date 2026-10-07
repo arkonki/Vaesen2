@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { UserPlus, UserMinus, ShieldAlert, Heart, Brain, Trash2 } from "lucide-react";
+import { UserPlus, ShieldAlert, Heart, Brain, Trash2 } from "lucide-react";
 import { enrollCharacter, removeCharacter } from "../../actions";
 import { cn } from "@/lib/utils";
 
-const PHYSICAL_CONDITION_KEYS = ["exhausted", "battered", "wounded", "broken"];
-const MENTAL_CONDITION_KEYS = ["angry", "frightened", "hopeless", "broken"];
+import { summarizeConditions } from "@/lib/character-rules";
+import type { Prisma } from "@prisma/client";
+import { partyCharacterSelect } from "@/lib/security";
 
-export default function MemberList({ party, isGM }: { party: any, isGM: boolean }) {
+type PartyMemberSummary = Prisma.CharacterGetPayload<{ select: typeof partyCharacterSelect }>;
+
+export default function MemberList({ party, isGM }: { party: { id: string; members: Array<{ id: string; character: PartyMemberSummary }> }, isGM: boolean }) {
   const [inviteId, setInviteId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -18,7 +21,8 @@ export default function MemberList({ party, isGM }: { party: any, isGM: boolean 
     try {
       await enrollCharacter(party.id, inviteId);
       setInviteId("");
-    } catch (error) {
+      alert("Invitation sent. The character owner must accept it on their home page. Characters you own or enroll as an administrator are added immediately.");
+    } catch {
       alert("Failed to invite character. Check the ID.");
     } finally {
       setIsLoading(false);
@@ -33,23 +37,23 @@ export default function MemberList({ party, isGM }: { party: any, isGM: boolean 
   return (
     <div className="space-y-6">
       {isGM && (
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 shadow-xl">
-          <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
-            <UserPlus className="w-5 h-5 text-indigo-400" />
+        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-xl p-6 shadow-xl">
+          <h3 className="text-lg font-semibold text-[var(--ledger-ink)] flex items-center gap-2 mb-4">
+            <UserPlus className="w-5 h-5 text-[var(--ledger-accent)]" />
             Recruit New Member
           </h3>
           <div className="flex gap-4">
             <input
               type="text"
               placeholder="Enter Character ID"
-              className="flex-1 bg-neutral-950 border border-neutral-700 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="flex-1 bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-[var(--ledger-focus)] outline-none"
               value={inviteId}
               onChange={(e) => setInviteId(e.target.value)}
             />
             <button
               onClick={handleInvite}
               disabled={isLoading}
-              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="bg-[rgba(127,48,40,0.12)] hover:bg-[rgba(127,48,40,0.12)] disabled:opacity-50 text-[var(--ledger-ink)] px-6 py-2 rounded-lg text-sm font-medium transition-colors"
             >
               Invite
             </button>
@@ -58,30 +62,23 @@ export default function MemberList({ party, isGM }: { party: any, isGM: boolean 
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {party.members.map((member: any) => {
+        {party.members.map((member) => {
           const char = member.character;
-          
-          // Conditions logic (assuming JSON structure from requirements)
-          const physicalConditions = char.physicalConditions || {};
-          const mentalConditions = char.mentalConditions || {};
-          
-          const physicalCount = PHYSICAL_CONDITION_KEYS.filter((key) => physicalConditions[key] === true).length;
-          const mentalCount = MENTAL_CONDITION_KEYS.filter((key) => mentalConditions[key] === true).length;
-          
-          const isBroken = physicalCount >= 3 || mentalCount >= 3;
+
+          const { physical: physicalCount, mental: mentalCount, isBroken } = summarizeConditions(char.physicalConditions, char.mentalConditions);
 
           return (
-            <div key={member.id} className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden hover:border-neutral-700 transition-colors group">
+            <div key={member.id} className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-xl overflow-hidden hover:border-[var(--ledger-line)]/55 transition-colors group">
               <div className="p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h4 className="text-xl font-bold text-white group-hover:text-indigo-400 transition-colors">
+                    <h4 className="text-xl font-bold text-[var(--ledger-ink)] group-hover:text-[var(--ledger-accent)] transition-colors">
                       {char.name}
                     </h4>
-                    <p className="text-sm text-neutral-500">{char.archetype?.name}</p>
+                    <p className="text-sm text-[var(--ledger-ink-soft)]">{char.archetype?.name}</p>
                   </div>
                   {isBroken && (
-                    <span className="bg-red-500/20 text-red-400 text-xs font-bold px-2 py-1 rounded border border-red-500/30 flex items-center gap-1 animate-pulse">
+                    <span className="bg-red-500/20 text-[var(--ledger-danger)] text-xs font-bold px-2 py-1 rounded border border-red-500/30 flex items-center gap-1 animate-pulse">
                       <ShieldAlert className="w-3 h-3" />
                       BROKEN
                     </span>
@@ -92,15 +89,15 @@ export default function MemberList({ party, isGM }: { party: any, isGM: boolean 
                   {/* Physical Health */}
                   <div>
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="text-neutral-400 flex items-center gap-1">
-                        <Heart className="w-3 h-3 text-red-400" /> Physical
+                      <span className="text-[var(--ledger-ink-soft)] flex items-center gap-1">
+                        <Heart className="w-3 h-3 text-[var(--ledger-danger)]" /> Physical
                       </span>
-                      <span className={cn(physicalCount > 0 ? "text-red-400" : "text-neutral-500")}>
+                      <span className={cn(physicalCount > 0 ? "text-[var(--ledger-danger)]" : "text-[var(--ledger-ink-soft)]")}>
                         {physicalCount}/3 Conditions
                       </span>
                     </div>
-                    <div className="h-1.5 w-full bg-neutral-800 rounded-full overflow-hidden">
-                      <div 
+                    <div className="h-1.5 w-full bg-[var(--ledger-paper-deep)] rounded-full overflow-hidden">
+                      <div
                         className={cn("h-full transition-all duration-500", physicalCount === 0 ? "bg-emerald-500" : physicalCount < 3 ? "bg-yellow-500" : "bg-red-600")}
                         style={{ width: `${(physicalCount / 3) * 100}%` }}
                       />
@@ -110,16 +107,16 @@ export default function MemberList({ party, isGM }: { party: any, isGM: boolean 
                   {/* Mental Health */}
                   <div>
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="text-neutral-400 flex items-center gap-1">
-                        <Brain className="w-3 h-3 text-blue-400" /> Mental
+                      <span className="text-[var(--ledger-ink-soft)] flex items-center gap-1">
+                        <Brain className="w-3 h-3 text-[var(--ledger-blue)]" /> Mental
                       </span>
-                      <span className={cn(mentalCount > 0 ? "text-blue-400" : "text-neutral-500")}>
+                      <span className={cn(mentalCount > 0 ? "text-[var(--ledger-blue)]" : "text-[var(--ledger-ink-soft)]")}>
                         {mentalCount}/3 Conditions
                       </span>
                     </div>
-                    <div className="h-1.5 w-full bg-neutral-800 rounded-full overflow-hidden">
-                      <div 
-                        className={cn("h-full transition-all duration-500", mentalCount === 0 ? "bg-emerald-500" : mentalCount < 3 ? "bg-blue-500" : "bg-purple-600")}
+                    <div className="h-1.5 w-full bg-[var(--ledger-paper-deep)] rounded-full overflow-hidden">
+                      <div
+                        className={cn("h-full transition-all duration-500", mentalCount === 0 ? "bg-emerald-500" : mentalCount < 3 ? "bg-blue-500" : "bg-[rgba(127,48,40,0.12)]")}
                         style={{ width: `${(mentalCount / 3) * 100}%` }}
                       />
                     </div>
@@ -128,10 +125,10 @@ export default function MemberList({ party, isGM }: { party: any, isGM: boolean 
               </div>
 
               {isGM && (
-                <div className="bg-neutral-800/50 p-3 flex justify-end border-t border-neutral-800">
-                  <button 
+                <div className="bg-[var(--ledger-paper-deep)] p-3 flex justify-end border-t border-[var(--ledger-line)]/55">
+                  <button
                     onClick={() => handleRemove(member.id)}
-                    className="text-neutral-500 hover:text-red-400 p-2 rounded-lg hover:bg-red-400/10 transition-colors"
+                    className="text-[var(--ledger-ink-soft)] hover:text-[var(--ledger-danger)] p-2 rounded-lg hover:bg-red-400/10 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -142,8 +139,8 @@ export default function MemberList({ party, isGM }: { party: any, isGM: boolean 
         })}
 
         {party.members.length === 0 && (
-          <div className="col-span-full py-12 text-center bg-neutral-900/50 border border-dashed border-neutral-800 rounded-xl">
-            <p className="text-neutral-500 italic">No members in this party yet.</p>
+          <div className="col-span-full py-12 text-center bg-[var(--ledger-surface-strong)] border border-dashed border-[var(--ledger-line)]/55 rounded-xl">
+            <p className="text-[var(--ledger-ink-soft)] italic">No members in this party yet.</p>
           </div>
         )}
       </div>

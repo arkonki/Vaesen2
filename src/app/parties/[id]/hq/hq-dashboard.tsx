@@ -11,8 +11,9 @@ import {
   Plus,
   ArrowUpRight,
 } from "lucide-react";
-import { buyUpgrade, updateHeadquarters } from "../../actions";
+import { buyUpgrade, updateHeadquarters, awardDevelopmentPoints } from "../../actions";
 import { cn } from "@/lib/utils";
+import { UPGRADE_SHOP } from "@/lib/hq-upgrades";
 
 type UpgradeType = "facilities" | "contacts" | "personnel";
 
@@ -39,26 +40,9 @@ type HeadquartersData = {
   facilities: unknown;
   contacts: unknown;
   personnel: unknown;
+  ledgerEntries: Array<{ id: string; points: number; description: string; createdAt: Date }>;
 };
 
-const UPGRADE_SHOP: Record<UpgradeType, UpgradeOption[]> = {
-  facilities: [
-    { name: "Infirmary", cost: 6, description: "Heal physical conditions faster between mysteries." },
-    { name: "Botanical Garden", cost: 4, description: "Gather rare ingredients and improve field recovery." },
-    { name: "Library", cost: 4, description: "Gain better context for research-heavy investigations." },
-    { name: "Workshop", cost: 5, description: "Maintain and customize gear for expeditions." },
-  ],
-  contacts: [
-    { name: "Police Inspector", cost: 3, description: "Access official reports and active investigations." },
-    { name: "University Professor", cost: 3, description: "Academic insight into occult, folklore, and history." },
-    { name: "Local Merchant", cost: 2, description: "Reliable channel to acquire scarce items quickly." },
-  ],
-  personnel: [
-    { name: "Guard", cost: 3, description: "Improves HQ safety and response to hostile incidents." },
-    { name: "Butler", cost: 2, description: "Keeps HQ operations stable during long investigations." },
-    { name: "Coachman", cost: 2, description: "Enables faster departure when time pressure is high." },
-  ],
-};
 
 function toUpgradeList(value: unknown): UpgradeOption[] {
   if (!Array.isArray(value)) {
@@ -118,6 +102,9 @@ export default function HQDashboard({ hq, isGM }: { hq: HeadquartersData; isGM: 
   const [historyText, setHistoryText] = useState(hq.history || "");
   const [isSaving, setIsSaving] = useState(false);
   const [isBuying, setIsBuying] = useState(false);
+  const [award, setAward] = useState({ points: 1, reason: "" });
+  const [awardBusy, setAwardBusy] = useState(false);
+  const [awardError, setAwardError] = useState("");
   const [threatEntries, setThreatEntries] = useState<ThreatEntry[]>(toThreatList(hq.threats));
 
   const facilities = toUpgradeList(hq.facilities);
@@ -136,7 +123,7 @@ export default function HQDashboard({ hq, isGM }: { hq: HeadquartersData; isGM: 
 
     setIsBuying(true);
     try {
-      const result = await buyUpgrade(hq.id, type, upgrade, upgrade.cost);
+      const result = await buyUpgrade(hq.id, type, upgrade.name);
       const nextThreats = toThreatList(result.threats);
       setThreatEntries(nextThreats);
 
@@ -166,12 +153,36 @@ export default function HQDashboard({ hq, isGM }: { hq: HeadquartersData; isGM: 
 
   return (
     <div className="space-y-12">
-      <div className="flex border-b border-neutral-800">
+      {isGM && <form className="ledger-panel p-4 flex flex-wrap gap-3" onSubmit={async (event) => {
+        event.preventDefault(); setAwardBusy(true); setAwardError("");
+        try {
+          await awardDevelopmentPoints(hq.id, award.points, award.reason);
+          setAward({ points: 1, reason: "" }); router.refresh();
+        } catch (error) { setAwardError(error instanceof Error ? error.message : "Award failed"); }
+        finally { setAwardBusy(false); }
+      }}>
+        <label className="ledger-input-group w-28"><span>Points to Award</span>
+          <input className="ledger-input" type="number" min={1} max={100} required value={award.points} onChange={(event) => setAward({ ...award, points: Number(event.target.value) })} />
+        </label>
+        <label className="ledger-input-group min-w-0 flex-[1_1_12rem]"><span>Reason</span>
+          <input className="ledger-input" required maxLength={1000} value={award.reason} onChange={(event) => setAward({ ...award, reason: event.target.value })} />
+        </label>
+        <button className="ledger-roll-trigger" disabled={awardBusy}>{awardBusy ? "Awarding..." : "Award Points"}</button>
+        {awardError && <p role="alert" className="w-full">{awardError}</p>}
+      </form>}
+      <section className="ledger-panel p-4 space-y-2">
+        <h2 className="text-xl font-bold">Development History</h2>
+        {hq.ledgerEntries.length ? hq.ledgerEntries.map((entry) => <p key={entry.id}>
+          <strong>{entry.points > 0 ? "+" : ""}{entry.points} DP</strong> {entry.description}
+          <span className="ml-3 text-sm">{new Date(entry.createdAt).toLocaleDateString()}</span>
+        </p>) : <p>No Development Point transactions recorded yet.</p>}
+      </section>
+      <div className="flex border-b border-[var(--ledger-line)]/55">
         <button
           onClick={() => setActiveTab("upgrades")}
           className={cn(
             "px-6 py-3 text-sm font-medium border-b-2 transition-colors",
-            activeTab === "upgrades" ? "border-indigo-500 text-white" : "border-transparent text-neutral-500 hover:text-neutral-300"
+            activeTab === "upgrades" ? "border-[var(--ledger-accent)]/65 text-[var(--ledger-ink)]" : "border-transparent text-[var(--ledger-ink-soft)] hover:text-[var(--ledger-ink)]"
           )}
         >
           Upgrades & HQ Assets
@@ -180,7 +191,7 @@ export default function HQDashboard({ hq, isGM }: { hq: HeadquartersData; isGM: 
           onClick={() => setActiveTab("history")}
           className={cn(
             "px-6 py-3 text-sm font-medium border-b-2 transition-colors",
-            activeTab === "history" ? "border-indigo-500 text-white" : "border-transparent text-neutral-500 hover:text-neutral-300"
+            activeTab === "history" ? "border-[var(--ledger-accent)]/65 text-[var(--ledger-ink)]" : "border-transparent text-[var(--ledger-ink-soft)] hover:text-[var(--ledger-ink)]"
           )}
         >
           History & Threats
@@ -189,7 +200,7 @@ export default function HQDashboard({ hq, isGM }: { hq: HeadquartersData; isGM: 
 
       {activeTab === "upgrades" ? (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <div className="rounded-xl border border-red-900/50 bg-red-950/20 p-4 text-sm text-red-100">
+          <div className="rounded-xl border border-red-900/50 bg-red-950/20 p-4 text-sm text-[var(--ledger-danger)]">
             Every headquarters expansion carries a threat risk. Purchasing upgrades may add a new active threat.
           </div>
 
@@ -226,12 +237,12 @@ export default function HQDashboard({ hq, isGM }: { hq: HeadquartersData; isGM: 
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 animate-in fade-in slide-in-from-bottom-2 duration-500">
           <div className="space-y-4">
-            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-              <History className="w-5 h-5 text-indigo-400" />
+            <h3 className="text-xl font-bold text-[var(--ledger-ink)] flex items-center gap-2">
+              <History className="w-5 h-5 text-[var(--ledger-accent)]" />
               HQ History
             </h3>
             <textarea
-              className="w-full h-80 bg-neutral-900 border border-neutral-800 rounded-xl p-6 text-sm text-neutral-300 leading-relaxed focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full h-80 bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-xl p-6 text-sm text-[var(--ledger-ink)] leading-relaxed focus:ring-2 focus:ring-[var(--ledger-focus)] outline-none"
               placeholder="Record the deeds performed at the HQ..."
               value={historyText}
               onChange={(event) => setHistoryText(event.target.value)}
@@ -241,7 +252,7 @@ export default function HQDashboard({ hq, isGM }: { hq: HeadquartersData; isGM: 
               <button
                 onClick={handleSaveHistory}
                 disabled={isSaving}
-                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white px-8 py-3 rounded-xl font-bold transition-all"
+                className="bg-[rgba(127,48,40,0.12)] hover:bg-[rgba(127,48,40,0.12)] disabled:opacity-60 text-[var(--ledger-ink)] px-8 py-3 rounded-xl font-bold transition-all"
               >
                 {isSaving ? "Saving..." : "Save HQ History"}
               </button>
@@ -249,26 +260,26 @@ export default function HQDashboard({ hq, isGM }: { hq: HeadquartersData; isGM: 
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-red-400" />
+            <h3 className="text-xl font-bold text-[var(--ledger-ink)] flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-[var(--ledger-danger)]" />
               Active Threats
             </h3>
 
-            <div className="space-y-3 max-h-96 overflow-y-auto rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+            <div className="space-y-3 max-h-96 overflow-y-auto rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-4">
               {threatEntries.length > 0 ? (
                 threatEntries.map((threat) => (
                   <article key={threat.id} className="rounded-lg border border-red-800/40 bg-red-950/20 p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold text-red-100">{threat.title}</p>
-                      <span className="text-xs text-red-200">{threat.status}</span>
+                      <p className="font-semibold text-[var(--ledger-danger)]">{threat.title}</p>
+                      <span className="text-xs text-[var(--ledger-danger)]">{threat.status}</span>
                     </div>
-                    <p className="mt-1 text-xs text-red-200/80">Source: {threat.sourceUpgrade}</p>
-                    <p className="mt-2 text-sm text-neutral-200">{threat.description}</p>
-                    <p className="mt-2 text-xs text-neutral-400">{new Date(threat.createdAt).toLocaleString()}</p>
+                    <p className="mt-1 text-xs text-[var(--ledger-danger)]">Source: {threat.sourceUpgrade}</p>
+                    <p className="mt-2 text-sm text-[var(--ledger-ink)]">{threat.description}</p>
+                    <p className="mt-2 text-xs text-[var(--ledger-ink-soft)]">{new Date(threat.createdAt).toLocaleString()}</p>
                   </article>
                 ))
               ) : (
-                <p className="text-sm text-neutral-500 italic">No active threats logged.</p>
+                <p className="text-sm text-[var(--ledger-ink-soft)] italic">No active threats logged.</p>
               )}
             </div>
           </div>
@@ -297,41 +308,41 @@ function UpgradeSection({
 }) {
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 border-b border-neutral-800 pb-2">
-        <Icon className="w-6 h-6 text-indigo-400" />
-        <h3 className="text-xl font-bold text-white">{title}</h3>
+      <div className="flex items-center gap-3 border-b border-[var(--ledger-line)]/55 pb-2">
+        <Icon className="w-6 h-6 text-[var(--ledger-accent)]" />
+        <h3 className="text-xl font-bold text-[var(--ledger-ink)]">{title}</h3>
       </div>
 
       <div className="space-y-3">
         {items.map((item, index) => (
           <div key={`${item.name}-${index}`} className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-4 py-3 flex justify-between items-center group">
-            <span className="text-sm font-medium text-emerald-400">{item.name}</span>
-            <ArrowUpRight className="w-4 h-4 text-emerald-500/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <span className="text-sm font-medium text-[var(--ledger-success)]">{item.name}</span>
+            <ArrowUpRight className="w-4 h-4 text-[var(--ledger-success)] opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         ))}
-        {items.length === 0 ? <p className="text-xs text-neutral-600 italic">No {title.toLowerCase()} yet.</p> : null}
+        {items.length === 0 ? <p className="text-xs text-[var(--ledger-ink-soft)] italic">No {title.toLowerCase()} yet.</p> : null}
       </div>
 
       {canBuy ? (
-        <div className="pt-4 border-t border-neutral-900">
-          <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-4">Available Upgrades</h4>
+        <div className="pt-4 border-t border-[var(--ledger-line)]/55">
+          <h4 className="text-xs font-bold text-[var(--ledger-ink-soft)] uppercase tracking-widest mb-4">Available Upgrades</h4>
           <div className="space-y-3">
             {shop.filter((option) => !items.some((owned) => owned.name === option.name)).map((upgrade) => (
               <button
                 key={upgrade.name}
                 onClick={() => onBuy(upgrade)}
                 disabled={isBuying}
-                className="w-full text-left bg-neutral-900 border border-neutral-800 p-4 rounded-xl hover:bg-neutral-800 hover:border-neutral-700 transition-all group relative overflow-hidden disabled:opacity-60"
+                className="w-full text-left bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 p-4 rounded-xl hover:bg-[var(--ledger-paper-deep)] hover:border-[var(--ledger-line)]/55 transition-all group relative overflow-hidden disabled:opacity-60"
               >
                 <div className="relative z-10">
                   <div className="flex justify-between items-start mb-1">
-                    <span className="text-sm font-bold text-neutral-200 group-hover:text-indigo-400 transition-colors">{upgrade.name}</span>
-                    <span className="text-xs font-black text-indigo-400">{upgrade.cost} DP</span>
+                    <span className="text-sm font-bold text-[var(--ledger-ink)] group-hover:text-[var(--ledger-accent)] transition-colors">{upgrade.name}</span>
+                    <span className="text-xs font-black text-[var(--ledger-accent)]">{upgrade.cost} DP</span>
                   </div>
-                  <p className="text-xs text-neutral-500 leading-tight pr-4">{upgrade.description}</p>
+                  <p className="text-xs text-[var(--ledger-ink-soft)] leading-tight pr-4">{upgrade.description}</p>
                 </div>
                 <div className="absolute top-1/2 right-4 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Plus className="w-4 h-4 text-indigo-400" />
+                  <Plus className="w-4 h-4 text-[var(--ledger-accent)]" />
                 </div>
               </button>
             ))}

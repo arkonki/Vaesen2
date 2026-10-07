@@ -6,25 +6,27 @@ import { updatePartyNotes } from "../../actions";
 import { cn } from "@/lib/utils";
 
 export default function NoteEditor({ partyId, initialContent, isGM }: { partyId: string, initialContent: string, isGM: boolean }) {
-  const [content, setContent] = useState(initialContent);
+  const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
 
   // Initialize content
   useEffect(() => {
-    if (editorRef.current && initialContent) {
+    if (editorRef.current) {
       editorRef.current.innerHTML = initialContent;
     }
-  }, []);
+  }, [initialContent]);
 
   async function handleSave() {
+    if (!isGM || isSaving) return;
+    setError("");
     setIsSaving(true);
     const html = editorRef.current?.innerHTML || "";
     try {
       await updatePartyNotes(partyId, html);
-      setContent(html);
+
     } catch (e) {
-      console.error("Save failed", e);
+      setError(e instanceof Error ? e.message : "Save failed");
     } finally {
       setIsSaving(false);
     }
@@ -38,41 +40,45 @@ export default function NoteEditor({ partyId, initialContent, isGM }: { partyId:
   return (
     <div className="h-full flex flex-col">
       {/* Toolbar */}
-      <div className="flex items-center gap-1 mb-6 pb-4 border-b border-neutral-800">
-        <button onClick={() => execCommand("bold")} className="p-2 hover:bg-neutral-800 rounded transition-colors" title="Bold">
-          <Bold className="w-4 h-4 text-neutral-400" />
+      {isGM && <div className="flex items-center gap-1 mb-6 pb-4 border-b border-[var(--ledger-line)]/55">
+        <button onClick={() => execCommand("bold")} className="p-2 hover:bg-[var(--ledger-paper-deep)] rounded transition-colors" title="Bold">
+          <Bold className="w-4 h-4 text-[var(--ledger-ink-soft)]" />
         </button>
-        <button onClick={() => execCommand("italic")} className="p-2 hover:bg-neutral-800 rounded transition-colors" title="Italic">
-          <Italic className="w-4 h-4 text-neutral-400" />
+        <button onClick={() => execCommand("italic")} className="p-2 hover:bg-[var(--ledger-paper-deep)] rounded transition-colors" title="Italic">
+          <Italic className="w-4 h-4 text-[var(--ledger-ink-soft)]" />
         </button>
-        <div className="w-px h-4 bg-neutral-800 mx-2" />
-        <button onClick={() => execCommand("formatBlock", "H1")} className="p-2 hover:bg-neutral-800 rounded transition-colors" title="Heading 1">
-          <Heading1 className="w-4 h-4 text-neutral-400" />
+        <div className="w-px h-4 bg-[var(--ledger-paper-deep)] mx-2" />
+        <button onClick={() => execCommand("formatBlock", "H1")} className="p-2 hover:bg-[var(--ledger-paper-deep)] rounded transition-colors" title="Heading 1">
+          <Heading1 className="w-4 h-4 text-[var(--ledger-ink-soft)]" />
         </button>
-        <button onClick={() => execCommand("formatBlock", "H2")} className="p-2 hover:bg-neutral-800 rounded transition-colors" title="Heading 2">
-          <Heading2 className="w-4 h-4 text-neutral-400" />
+        <button onClick={() => execCommand("formatBlock", "H2")} className="p-2 hover:bg-[var(--ledger-paper-deep)] rounded transition-colors" title="Heading 2">
+          <Heading2 className="w-4 h-4 text-[var(--ledger-ink-soft)]" />
         </button>
-        <button onClick={() => execCommand("insertUnorderedList")} className="p-2 hover:bg-neutral-800 rounded transition-colors" title="Bullet List">
-          <List className="w-4 h-4 text-neutral-400" />
+        <button onClick={() => execCommand("insertUnorderedList")} className="p-2 hover:bg-[var(--ledger-paper-deep)] rounded transition-colors" title="Bullet List">
+          <List className="w-4 h-4 text-[var(--ledger-ink-soft)]" />
         </button>
-        
+
         <div className="flex-1" />
-        
-        <button 
+
+        <button
           onClick={handleSave}
           disabled={isSaving}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all"
+          className="flex items-center gap-2 bg-[rgba(127,48,40,0.12)] hover:bg-[rgba(127,48,40,0.12)] disabled:opacity-50 text-[var(--ledger-ink)] px-4 py-2 rounded-lg text-sm font-bold transition-all"
         >
           <Save className={cn("w-4 h-4", isSaving && "animate-spin")} />
           {isSaving ? "Saving..." : "Save Notes"}
         </button>
-      </div>
+      </div>}
+      {error && <p role="alert">{error}</p>}
 
       {/* Editor */}
-      <div 
+      <div
         ref={editorRef}
-        contentEditable={true}
-        className="flex-1 outline-none text-neutral-300 leading-relaxed font-serif prose prose-invert max-w-none prose-headings:text-white prose-p:text-neutral-300"
+        contentEditable={isGM}
+        role={isGM ? "textbox" : undefined}
+        aria-label="Shared party notes"
+        aria-multiline={isGM ? true : undefined}
+        className="flex-1 outline-none text-[var(--ledger-ink)] leading-relaxed font-serif prose  max-w-none prose-headings:text-[var(--ledger-ink)] prose-p:text-[var(--ledger-ink)]"
       />
     </div>
   );

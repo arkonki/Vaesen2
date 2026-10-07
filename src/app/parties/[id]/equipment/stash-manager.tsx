@@ -93,13 +93,13 @@ export default function StashManager({
   return (
     <div className="space-y-8">
       {canEdit ? (
-        <form onSubmit={handleAdd} className="grid gap-4 rounded-2xl border border-white/10 bg-neutral-900/70 p-5 lg:grid-cols-[1.2fr_0.3fr_1fr_auto]">
+        <form onSubmit={handleAdd} className="grid gap-4 rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5 lg:grid-cols-[1.2fr_0.3fr_1fr_auto]">
           <div>
-            <label className="mb-2 block text-sm font-medium text-neutral-300">Item</label>
+            <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]">Item</label>
             <select
               value={selectedItemId}
               onChange={(event) => setSelectedItemId(event.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none"
+              className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
             >
               {items.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -110,23 +110,23 @@ export default function StashManager({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-neutral-300">Qty</label>
+            <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]">Qty</label>
             <input
               type="number"
               min={1}
               value={quantity}
               onChange={(event) => setQuantity(event.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none"
+              className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-neutral-300">Notes</label>
+            <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]">Notes</label>
             <input
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               placeholder="Stashed after the latest mystery"
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none"
+              className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
             />
           </div>
 
@@ -134,7 +134,7 @@ export default function StashManager({
             <button
               type="submit"
               disabled={busyKey === "create" || items.length === 0}
-              className="rounded-full border border-amber-300/30 bg-amber-500/10 px-5 py-3 text-sm font-semibold text-amber-100 transition-colors hover:bg-amber-500/20 disabled:opacity-60"
+              className="rounded-full border border-[var(--ledger-accent)]/65 bg-[rgba(127,48,40,0.12)] px-5 py-3 text-sm font-semibold text-[var(--ledger-accent)] transition-colors hover:bg-[rgba(127,48,40,0.12)] disabled:opacity-60"
             >
               {busyKey === "create" ? "Saving..." : "Add to Stash"}
             </button>
@@ -144,10 +144,10 @@ export default function StashManager({
 
       <div className="grid gap-6 lg:grid-cols-2">
         {grouped.map((group) => (
-          <section key={group.type} className="rounded-2xl border border-white/10 bg-neutral-950/60 p-5">
+          <section key={group.type} className="rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-5">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xl font-bold text-white">{group.label}</h2>
-              <span className="text-xs uppercase tracking-[0.2em] text-neutral-500">{group.entries.length} entries</span>
+              <h2 className="text-xl font-bold text-[var(--ledger-ink)]">{group.label}</h2>
+              <span className="text-xs uppercase tracking-[0.2em] text-[var(--ledger-ink-soft)]">{group.entries.length} entries</span>
             </div>
 
             <div className="mt-4 space-y-3">
@@ -163,7 +163,7 @@ export default function StashManager({
                   />
                 ))
               ) : (
-                <div className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-neutral-500">
+                <div className="rounded-xl border border-dashed border-[var(--ledger-line)]/55 p-4 text-sm text-[var(--ledger-ink-soft)]">
                   No {group.label.toLowerCase()} stored here.
                 </div>
               )}
@@ -192,21 +192,21 @@ function StashEntryCard({
   const [notes, setNotes] = useState(entry.notes ?? "");
 
   return (
-    <article className="rounded-xl border border-white/10 bg-neutral-900/60 p-4">
+    <article className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-white">{entry.item.name}</h3>
-          <p className="mt-1 text-xs uppercase tracking-[0.2em] text-neutral-500">
+          <h3 className="text-lg font-semibold text-[var(--ledger-ink)]">{entry.item.name}</h3>
+          <p className="mt-1 text-xs uppercase tracking-[0.2em] text-[var(--ledger-ink-soft)]">
             Bonus +{entry.item.bonus} · Availability {entry.item.availability}
           </p>
         </div>
-        <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-neutral-300">
+        <span className="rounded-full border border-[var(--ledger-line)]/55 px-3 py-1 text-xs text-[var(--ledger-ink)]">
           x{entry.quantity}
         </span>
       </div>
 
       {entry.item.description ? (
-        <p className="mt-3 text-sm text-neutral-400">{entry.item.description}</p>
+        <p className="mt-3 text-sm text-[var(--ledger-ink-soft)]">{entry.item.description}</p>
       ) : null}
 
       {canEdit ? (
@@ -216,19 +216,19 @@ function StashEntryCard({
             min={1}
             value={quantity}
             onChange={(event) => setQuantity(event.target.value)}
-            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+            className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
           />
           <input
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             placeholder="No notes"
-            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+            className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
           />
           <button
             type="button"
             disabled={isBusy}
             onClick={() => onSave(entry.item.id, Math.max(1, Number(quantity) || 1), notes)}
-            className="rounded-full border border-white/10 px-4 py-2 text-sm text-white transition-colors hover:border-white/20 disabled:opacity-60"
+            className="rounded-full border border-[var(--ledger-line)]/55 px-4 py-2 text-sm text-[var(--ledger-ink)] transition-colors hover:border-[var(--ledger-line)]/55 disabled:opacity-60"
           >
             Save
           </button>
@@ -236,13 +236,13 @@ function StashEntryCard({
             type="button"
             disabled={isBusy}
             onClick={() => onRemove(entry.item.id)}
-            className="rounded-full border border-red-400/20 px-4 py-2 text-sm text-red-200 transition-colors hover:bg-red-500/10 disabled:opacity-60"
+            className="rounded-full border border-red-400/20 px-4 py-2 text-sm text-[var(--ledger-danger)] transition-colors hover:bg-red-500/10 disabled:opacity-60"
           >
             Remove
           </button>
         </div>
       ) : notes ? (
-        <p className="mt-3 text-sm text-neutral-400">Notes: {notes}</p>
+        <p className="mt-3 text-sm text-[var(--ledger-ink-soft)]">Notes: {notes}</p>
       ) : null}
     </article>
   );

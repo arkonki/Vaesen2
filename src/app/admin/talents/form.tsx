@@ -1,12 +1,13 @@
 "use client";
 
+import type { Talent, Archetype } from "@prisma/client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createTalent, updateTalent } from "@/app/admin/actions";
 import Link from "next/link";
 import { TalentType } from "@prisma/client";
 
-export default function TalentForm({ talent, archetypes }: { talent?: any, archetypes: any[] }) {
+export default function TalentForm({ talent, archetypes }: { talent?: Talent | null, archetypes: Archetype[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [type, setType] = useState<TalentType>(talent?.type || "GENERAL");
@@ -40,30 +41,30 @@ export default function TalentForm({ talent, archetypes }: { talent?: any, arche
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-xl">
       <div>
-        <label className="block text-sm font-medium text-neutral-300 mb-1">Name</label>
-        <input required type="text" name="name" defaultValue={talent?.name} className="w-full bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-white focus:outline-none focus:border-indigo-500" />
+        <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Name</label>
+        <input required type="text" name="name" defaultValue={talent?.name} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-neutral-300 mb-1">Type</label>
-          <select 
-            name="type" 
-            value={type} 
+          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Type</label>
+          <select
+            name="type"
+            value={type}
             onChange={(e) => setType(e.target.value as TalentType)}
-            className="w-full bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+            className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65"
           >
             <option value="GENERAL">General</option>
             <option value="ARCHETYPE">Archetype-Specific</option>
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-neutral-300 mb-1">Archetype requirement</label>
-          <select 
-            name="archetypeId" 
+          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Archetype requirement</label>
+          <select
+            name="archetypeId"
             defaultValue={talent?.archetypeId || ""}
             disabled={type !== "ARCHETYPE"}
-            className="w-full bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="">None</option>
             {archetypes.map(a => (
@@ -74,15 +75,15 @@ export default function TalentForm({ talent, archetypes }: { talent?: any, arche
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-neutral-300 mb-1">Description</label>
-        <textarea required rows={4} name="description" defaultValue={talent?.description} className="w-full bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-white focus:outline-none focus:border-indigo-500" />
+        <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Description</label>
+        <textarea required rows={4} name="description" defaultValue={talent?.description} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
       </div>
 
       <div className="flex justify-end gap-3 mt-6">
-        <Link href="/admin/talents" className="px-4 py-2 text-sm font-medium text-neutral-300 hover:text-white transition-colors">
+        <Link href="/admin/talents" className="px-4 py-2 text-sm font-medium text-[var(--ledger-ink)] hover:text-[var(--ledger-ink)] transition-colors">
           Cancel
         </Link>
-        <button disabled={loading} type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50">
+        <button disabled={loading} type="submit" className="bg-[rgba(127,48,40,0.12)] hover:bg-[rgba(127,48,40,0.12)] text-[var(--ledger-ink)] px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50">
           {loading ? "Saving..." : "Save Talent"}
         </button>
       </div>

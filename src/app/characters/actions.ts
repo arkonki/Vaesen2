@@ -1,9 +1,10 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAppSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { characterCreationSchema, validateCharacterAllocation } from "@/lib/character-rules";
+import { z } from "zod";
 
 type ConditionMap = Record<string, boolean>;
 
@@ -11,7 +12,7 @@ const PHYSICAL_CONDITION_KEYS = ["exhausted", "battered", "wounded", "broken"] a
 const MENTAL_CONDITION_KEYS = ["angry", "frightened", "hopeless", "broken"] as const;
 
 async function requireSession() {
-  const session = await getServerSession(authOptions);
+  const session = await getAppSession();
   if (!session) {
     throw new Error("Unauthorized");
   }
@@ -56,26 +57,31 @@ function normalizeConditionMap(input: unknown, keys: readonly string[]): Conditi
   const normalized: ConditionMap = {};
 
   for (const key of keys) {
-    normalized[key] = Boolean(raw[key]);
+    if (raw[key] !== undefined && typeof raw[key] !== "boolean") throw new Error("Invalid condition value");
+    normalized[key] = raw[key] === true;
   }
 
   return normalized;
 }
 
-export async function createPlayerCharacter(data: any) {
+export async function createPlayerCharacter(input: unknown) {
   const session = await requireSession();
-
-  // Basic validation
-  if (!data.name || !data.archetypeId || !data.ageGroup) {
-    throw new Error("Missing required fields");
-  }
+  const data = characterCreationSchema.parse(input);
 
   // Extract relations
   const { attributes, skills, equipment, talentId, ...baseChar } = data;
 
   // DB Transaction to ensure atomicity
   const character = await prisma.$transaction(async (tx) => {
-    const normalizedEquipment = Array.isArray(equipment) ? equipment : [];
+    const archetype = await tx.archetype.findUniqueOrThrow({ where: { id: data.archetypeId } });
+    validateCharacterAllocation(data, archetype);
+    const talent = await tx.talent.findUniqueOrThrow({ where: { id: data.talentId } });
+    if (talent.type !== "GENERAL" && talent.archetypeId !== archetype.id) {
+      throw new Error("This talent is not available to your archetype");
+    }
+    const itemIds = Array.from(new Set(equipment.map((item) => item.id)));
+    const items = await tx.item.findMany({ where: { id: { in: itemIds }, type: { not: "MAGIC" } } });
+    if (items.length !== itemIds.length) throw new Error("Invalid starting equipment selection");
 
     // 1. Create Character base
     const char = await tx.character.create({
@@ -89,36 +95,15 @@ export async function createPlayerCharacter(data: any) {
         darkSecret: baseChar.darkSecret || "",
         memento: baseChar.memento || "",
         resources: baseChar.resources || 0,
-        equipment: normalizedEquipment, // legacy JSON storage for backward compatibility
+        equipment: items.map(({ id, name, type }) => ({ id, name, type })),
         talents: talentId ? [talentId] : [], // JSON array
       }
     });
 
-    const requestedItemIds = Array.from(
-      new Set(
-        normalizedEquipment
-          .map((item: unknown) =>
-            item && typeof item === "object" && "id" in item ? String((item as { id: string }).id) : null
-          )
-          .filter((id): id is string => Boolean(id))
-      )
-    );
-
-    if (requestedItemIds.length > 0) {
-      const existingItems = await tx.item.findMany({
-        where: { id: { in: requestedItemIds } },
-        select: { id: true },
+    if (items.length) {
+      await tx.characterInventory.createMany({
+        data: items.map((item) => ({ characterId: char.id, itemId: item.id, quantity: 1 })),
       });
-
-      if (existingItems.length > 0) {
-        await tx.characterInventory.createMany({
-          data: existingItems.map((item) => ({
-            characterId: char.id,
-            itemId: item.id,
-            quantity: 1,
-          })),
-        });
-      }
     }
 
     // 2. Create Attributes
@@ -154,6 +139,8 @@ export async function createPlayerCharacter(data: any) {
     return char;
   });
 
+  revalidatePath("/");
+  revalidatePath("/characters");
   return character.id;
 }
 
@@ -169,8 +156,8 @@ export async function updateCharacterConditions(
   const character = await prisma.character.update({
     where: { id: characterId },
     data: {
-      physicalConditions,
-      mentalConditions,
+      ...(data.physicalConditions !== undefined ? { physicalConditions } : {}),
+      ...(data.mentalConditions !== undefined ? { mentalConditions } : {}),
     },
     select: { id: true },
   });
@@ -182,9 +169,7 @@ export async function updateCharacterConditions(
 export async function updateCharacterExperience(characterId: string, experiencePoints: number) {
   await requireCharacterAccess(characterId);
 
-  const normalizedXp = Number.isFinite(experiencePoints)
-    ? Math.min(10, Math.max(0, Math.trunc(experiencePoints)))
-    : 0;
+  const normalizedXp = z.number().int().min(0).max(10).parse(experiencePoints);
 
   const character = await prisma.character.update({
     where: { id: characterId },
@@ -201,12 +186,12 @@ export async function updateCharacterJournal(
   data: { notes?: string; relationships?: string }
 ) {
   await requireCharacterAccess(characterId);
+  const journal = z.object({ notes: z.string().max(50000).optional(), relationships: z.string().max(50000).optional() }).parse(data);
 
   const character = await prisma.character.update({
     where: { id: characterId },
     data: {
-      notes: data.notes ?? "",
-      relationships: data.relationships ?? "",
+      ...journal,
     },
     select: { id: true, notes: true, relationships: true },
   });

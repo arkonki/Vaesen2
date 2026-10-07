@@ -1,11 +1,10 @@
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAppSession } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import CompendiumClient from "./compendium-client";
 
 export default async function CompendiumPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getAppSession();
 
   if (!session) {
     redirect("/login");
@@ -22,7 +21,7 @@ export default async function CompendiumPage() {
   ]);
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[var(--ledger-paper)] text-[var(--ledger-ink)] py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <CompendiumClient
           role={session.user.role}

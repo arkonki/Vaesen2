@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
@@ -9,19 +9,20 @@ datasource db {
 }
 
 model User {
-  id           String      @id @default(uuid())
-  name         String?
-  email        String?     @unique
-  passwordHash String?
-  role         Role        @default(PLAYER)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  characters   Character[]
-  gmParties    Party[]     @relation("GMToParty")
+  id             String      @id @default(uuid())
+  name           String?
+  email          String?     @unique
+  passwordHash   String?
+  sessionVersion Int         @default(0)
+  role           Role        @default(PLAYER)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  characters     Character[]
+  gmParties      Party[]     @relation("GMToParty")
 }
 
 model Character {
-  id                 String              @id @default(uuid())
+  id                 String                @id @default(uuid())
   userId             String
   name               String
   ageGroup           AgeGroup
@@ -29,23 +30,24 @@ model Character {
   motivation         String
   trauma             String
   darkSecret         String
-  physicalConditions Json                @default("{}")
-  mentalConditions   Json                @default("{}")
-  insightsDefects    Json                @default("{}")
-  experiencePoints   Int                 @default(0)
-  resources          Int                 @default(0)
-  capital            Int                 @default(0)
+  physicalConditions Json                  @default("{}")
+  mentalConditions   Json                  @default("{}")
+  insightsDefects    Json                  @default("{}")
+  experiencePoints   Int                   @default(0)
+  resources          Int                   @default(0)
+  capital            Int                   @default(0)
   memento            String?
   notes              String?
   relationships      String?
-  equipment          Json                @default("[]")
-  talents            Json                @default("[]")
-  archetype          Archetype           @relation(fields: [archetypeId], references: [id])
-  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  equipment          Json                  @default("[]")
+  talents            Json                  @default("[]")
+  archetype          Archetype             @relation(fields: [archetypeId], references: [id])
+  user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   attribute          CharacterAttribute?
   skill              CharacterSkill?
   parties            PartyMember[]
   inventory          CharacterInventory[]
+  invitations        CharacterInvitation[]
 }
 
 model CharacterAttribute {
@@ -87,11 +89,11 @@ model Archetype {
 }
 
 model Item {
-  id           String   @id @default(uuid())
+  id           String               @id @default(uuid())
   name         String
   description  String?
-  bonus        Int      @default(0)
-  availability Int      @default(0)
+  bonus        Int                  @default(0)
+  availability Int                  @default(0)
   type         ItemType
   damage       Int?
   range        String?
@@ -152,27 +154,40 @@ model Vaesen {
 }
 
 model Party {
-  id           String          @id @default(uuid())
+  id           String                @id @default(uuid())
   name         String
   gmId         String
   notes        String?
   tasks        AdventureTask[]
   mysteries    Mystery[]
   headquarters Headquarters?
-  gm           User            @relation("GMToParty", fields: [gmId], references: [id], onDelete: Cascade)
+  gm           User                  @relation("GMToParty", fields: [gmId], references: [id], onDelete: Cascade)
   members      PartyMember[]
   maps         GameMap[]
   stashItems   PartyStashItem[]
+  invitations  CharacterInvitation[]
+}
+
+model CharacterInvitation {
+  id          String    @id @default(uuid())
+  partyId     String
+  characterId String
+  createdAt   DateTime  @default(now())
+  party       Party     @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([partyId, characterId])
+  @@index([characterId])
 }
 
 model PartyStashItem {
-  id       String @id @default(uuid())
-  partyId   String
-  itemId    String
-  quantity  Int    @default(1)
-  notes     String?
-  party     Party  @relation(fields: [partyId], references: [id], onDelete: Cascade)
-  item      Item   @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  id       String  @id @default(uuid())
+  partyId  String
+  itemId   String
+  quantity Int     @default(1)
+  notes    String?
+  party    Party   @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  item     Item    @relation(fields: [itemId], references: [id], onDelete: Restrict)
 
   @@unique([partyId, itemId])
   @@index([partyId])
@@ -180,55 +195,59 @@ model PartyStashItem {
 }
 
 model Mystery {
-  id          String           @id @default(uuid())
-  partyId      String
-  title        String
-  summary      String
-  hook         String?
-  aftermath    String?
-  status       MysteryStatus   @default(PREP)
-  startedAt    DateTime        @default(now())
-  completedAt  DateTime?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  party        Party           @relation(fields: [partyId], references: [id], onDelete: Cascade)
-  clues        MysteryClue[]
-  entities     MysteryEntity[]
-  locations    MysteryLocation[]
+  id          String            @id @default(uuid())
+  partyId     String
+  title       String
+  summary     String
+  hook        String?
+  aftermath   String?
+  status      MysteryStatus     @default(PREP)
+  isPublished Boolean           @default(false)
+  startedAt   DateTime          @default(now())
+  completedAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  party       Party             @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  clues       MysteryClue[]
+  entities    MysteryEntity[]
+  locations   MysteryLocation[]
 
   @@index([partyId, status])
 }
 
 model MysteryClue {
-  id          String   @id @default(uuid())
-  mysteryId   String
-  content     String
-  isResolved  Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  mystery     Mystery  @relation(fields: [mysteryId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  mysteryId  String
+  content    String
+  isResolved Boolean  @default(false)
+  isRevealed Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  mystery    Mystery  @relation(fields: [mysteryId], references: [id], onDelete: Cascade)
 
   @@index([mysteryId])
 }
 
 model MysteryEntity {
-  id          String            @id @default(uuid())
-  mysteryId   String
-  name        String
-  type        MysteryEntityType
-  details     String?
-  createdAt   DateTime          @default(now())
-  mystery     Mystery           @relation(fields: [mysteryId], references: [id], onDelete: Cascade)
+  id         String            @id @default(uuid())
+  mysteryId  String
+  name       String
+  type       MysteryEntityType
+  details    String?
+  isRevealed Boolean           @default(false)
+  createdAt  DateTime          @default(now())
+  mystery    Mystery           @relation(fields: [mysteryId], references: [id], onDelete: Cascade)
 
   @@index([mysteryId, type])
 }
 
 model MysteryLocation {
-  id          String   @id @default(uuid())
-  mysteryId   String
-  name        String
-  details     String?
-  createdAt   DateTime @default(now())
-  mystery     Mystery  @relation(fields: [mysteryId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  mysteryId  String
+  name       String
+  details    String?
+  isRevealed Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  mystery    Mystery  @relation(fields: [mysteryId], references: [id], onDelete: Cascade)
 
   @@index([mysteryId])
 }
@@ -244,16 +263,29 @@ model PartyMember {
 }
 
 model Headquarters {
-  id                String @id @default(uuid())
-  partyId           String @unique
+  id                String                    @id @default(uuid())
+  partyId           String                    @unique
   name              String
-  developmentPoints Int    @default(0)
-  facilities        Json   @default("[]")
-  contacts          Json   @default("[]")
-  personnel         Json   @default("[]")
+  developmentPoints Int                       @default(0)
+  facilities        Json                      @default("[]")
+  contacts          Json                      @default("[]")
+  personnel         Json                      @default("[]")
   history           String
-  threats           Json   @default("[]")
-  party             Party  @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  threats           Json                      @default("[]")
+  party             Party                     @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  ledgerEntries     HeadquartersLedgerEntry[]
+}
+
+model HeadquartersLedgerEntry {
+  id             String       @id @default(uuid())
+  headquartersId String
+  points         Int
+  description    String
+  actorId        String
+  createdAt      DateTime     @default(now())
+  headquarters   Headquarters @relation(fields: [headquartersId], references: [id], onDelete: Cascade)
+
+  @@index([headquartersId, createdAt])
 }
 
 model GameMap {

@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Prisma runs this seed as CommonJS. */
 const bcrypt = require("bcryptjs");
 const { PrismaClient, ItemType, Role, TalentType } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || "admin@vaesen.local";
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || "admin12345";
+const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD;
 const ADMIN_NAME = process.env.SEED_ADMIN_NAME || "Admin";
 
 const archetypes = [
@@ -185,32 +186,38 @@ const vaesenData = [
 async function upsertByName(model, name, data) {
   const existing = await model.findFirst({
     where: { name },
-    select: { id: true },
+    select: { id: true, name: true },
   });
 
   if (existing) {
-    return model.update({
-      where: { id: existing.id },
-      data,
-    });
+    return existing;
   }
 
   return model.create({ data });
 }
 
 async function seedUsers() {
-  const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+  const existing = await prisma.user.findUnique({ where: { email: ADMIN_EMAIL.toLowerCase() } });
+  if (existing && process.env.SEED_RESET_ADMIN_PASSWORD !== "true") {
+    if (existing.role !== Role.ADMIN) throw new Error("Bootstrap email belongs to a non-admin account. Choose another email or explicitly request a reset.");
+    return existing;
+  }
+  if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < 12 || Buffer.byteLength(ADMIN_PASSWORD, "utf8") > 72) {
+    throw new Error("Set SEED_ADMIN_PASSWORD to 12 or more characters (maximum 72 UTF-8 bytes). Existing accounts are preserved unless SEED_RESET_ADMIN_PASSWORD=true.");
+  }
+  const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
 
   const admin = await prisma.user.upsert({
-    where: { email: ADMIN_EMAIL },
+    where: { email: ADMIN_EMAIL.toLowerCase() },
     update: {
       name: ADMIN_NAME,
       role: Role.ADMIN,
       passwordHash,
+      sessionVersion: { increment: 1 },
     },
     create: {
       name: ADMIN_NAME,
-      email: ADMIN_EMAIL,
+      email: ADMIN_EMAIL.toLowerCase(),
       role: Role.ADMIN,
       passwordHash,
     },
@@ -281,7 +288,7 @@ async function main() {
   console.log("");
   console.log("Seed completed successfully.");
   console.log(`Admin email: ${admin.email}`);
-  console.log(`Admin password: ${ADMIN_PASSWORD}`);
+  console.log("Existing accounts and content were preserved. No passwords are logged.");
   console.log("Override with SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD / SEED_ADMIN_NAME if needed.");
 }
 

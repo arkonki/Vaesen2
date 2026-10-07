@@ -54,10 +54,10 @@ export default async function PartiesPage() {
   return (
     <main className="px-4 py-10 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-8">
-        <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,rgba(130,95,50,0.18),rgba(11,11,15,0.9))] p-8 shadow-2xl">
-          <p className="text-xs uppercase tracking-[0.35em] text-amber-200/80">Parties</p>
-          <h1 className="mt-3 text-4xl font-black tracking-tight text-white">Campaign Command</h1>
-          <p className="mt-4 max-w-3xl text-base leading-relaxed text-neutral-200/80">
+        <section className="rounded-[2rem] border border-[var(--ledger-line)]/55 bg-[linear-gradient(135deg,rgba(130,95,50,0.18),rgba(11,11,15,0.9))] p-8 shadow-2xl">
+          <p className="text-xs uppercase tracking-[0.35em] text-[var(--ledger-accent)]">Parties</p>
+          <h1 className="mt-3 text-4xl font-black tracking-tight text-[var(--ledger-ink)]">Campaign Command</h1>
+          <p className="mt-4 max-w-3xl text-base leading-relaxed text-[var(--ledger-ink)]">
             Manage Society parties, review active mysteries, and keep headquarters assets organized.
           </p>
         </section>
@@ -65,7 +65,7 @@ export default async function PartiesPage() {
         {canManage ? (
           <CreatePartyForm />
         ) : (
-          <section className="rounded-2xl border border-white/10 bg-neutral-950/60 p-5 text-sm text-neutral-400">
+          <section className="rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-5 text-sm text-[var(--ledger-ink-soft)]">
             Players can review their assigned parties here. Party creation is limited to GMs and admins.
           </section>
         )}
@@ -124,8 +124,8 @@ function PartySection({
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="text-2xl font-bold text-white">{title}</h2>
-        <p className="mt-1 text-sm text-neutral-400">{description}</p>
+        <h2 className="text-2xl font-bold text-[var(--ledger-ink)]">{title}</h2>
+        <p className="mt-1 text-sm text-[var(--ledger-ink-soft)]">{description}</p>
       </div>
 
       {parties.length > 0 ? (
@@ -134,21 +134,21 @@ function PartySection({
             <Link
               key={party.id}
               href={`/parties/${party.id}`}
-              className="rounded-2xl border border-white/10 bg-neutral-950/60 p-5 transition-colors hover:border-amber-400/30"
+              className="rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-5 transition-colors hover:border-[var(--ledger-accent)]/65"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-xl font-bold text-white">{party.name}</h3>
+                  <h3 className="text-xl font-bold text-[var(--ledger-ink)]">{party.name}</h3>
                   {showGm && party.gm ? (
-                    <p className="mt-2 text-sm text-neutral-400">GM: {party.gm.name || "Unnamed GM"}</p>
+                    <p className="mt-2 text-sm text-[var(--ledger-ink-soft)]">GM: {party.gm.name || "Unnamed GM"}</p>
                   ) : null}
                 </div>
-                <span className="rounded-full border border-amber-300/20 bg-amber-500/10 px-3 py-1 text-xs text-amber-100">
+                <span className="rounded-full border border-[var(--ledger-accent)]/65 bg-[rgba(127,48,40,0.12)] px-3 py-1 text-xs text-[var(--ledger-accent)]">
                   {party.headquarters?.developmentPoints ?? 0} DP
                 </span>
               </div>
 
-              <div className="mt-4 flex gap-4 text-xs uppercase tracking-[0.2em] text-neutral-500">
+              <div className="mt-4 flex gap-4 text-xs uppercase tracking-[0.2em] text-[var(--ledger-ink-soft)]">
                 <span>{party._count.members} Members</span>
                 <span>{party._count.mysteries} Mysteries</span>
               </div>
@@ -156,7 +156,7 @@ function PartySection({
           ))}
         </div>
       ) : emptyText ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-neutral-950/40 p-6 text-sm text-neutral-400">
+        <div className="rounded-2xl border border-dashed border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-6 text-sm text-[var(--ledger-ink-soft)]">
           {emptyText}
         </div>
       ) : null}

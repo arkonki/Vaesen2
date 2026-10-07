@@ -14,6 +14,11 @@
   --ledger-surface: rgba(255, 252, 246, 0.52);
   --ledger-surface-strong: rgba(255, 252, 246, 0.8);
   --ledger-focus: #91543b;
+  --ledger-danger: #8b2d26;
+  --ledger-success: #31593c;
+  --ledger-blue: #315769;
+  --font-geist-sans: "Iowan Old Style", Palatino, Georgia, serif;
+  --font-geist-mono: "Courier New", monospace;
 }
 
 @theme inline {
@@ -30,6 +35,26 @@ body {
   color: var(--foreground);
   font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
   text-rendering: optimizeLegibility;
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible,
+select:focus-visible, [contenteditable="true"]:focus-visible {
+  outline: 2px solid var(--ledger-focus);
+  outline-offset: 3px;
+}
+
+select option {
+  color: var(--ledger-ink);
+  background: var(--ledger-paper);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .ledger-page {

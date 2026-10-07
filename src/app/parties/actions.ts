@@ -1,15 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getServerSession } from "next-auth";
 import {
   MysteryEntityType,
   MysteryStatus,
   Prisma,
   TaskStatus,
 } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
+import { getAppSession } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { canManageParty } from "@/lib/security";
+import { z } from "zod";
+import { sanitizeNotes } from "@/lib/notes";
+import { getUpgrade, UpgradeType } from "@/lib/hq-upgrades";
+import { serializableTransaction } from "@/lib/transaction";
 
 type ThreatEntry = {
   id: string;
@@ -30,7 +34,7 @@ const THREAT_CATALOGUE = [
 ];
 
 async function requireSession() {
-  const session = await getServerSession(authOptions);
+  const session = await getAppSession();
 
   if (!session) {
     throw new Error("Unauthorized");
@@ -50,7 +54,7 @@ async function requirePartyManager(partyId: string) {
     throw new Error("Party not found");
   }
 
-  if (session.user.role !== "ADMIN" && party.gmId !== session.user.id) {
+  if (!canManageParty(session.user, party.gmId)) {
     throw new Error("Forbidden");
   }
 
@@ -67,8 +71,8 @@ async function requireHeadquartersManager(hqId: string) {
     throw new Error("Headquarters not found");
   }
 
-  await requirePartyManager(headquarters.partyId);
-  return headquarters;
+  const { session } = await requirePartyManager(headquarters.partyId);
+  return { ...headquarters, session };
 }
 
 async function requireMysteryManager(mysteryId: string) {
@@ -90,7 +94,7 @@ function toThreatList(value: unknown): ThreatEntry[] {
 }
 
 function rollThreatForUpgrade(upgradeName: string, cost: number): ThreatEntry | null {
-  const rolls = Array.from({ length: Math.max(1, cost) }, () => Math.ceil(Math.random() * 6));
+  const rolls = Array.from({ length: Math.max(1, cost) }, () => Math.floor(Math.random() * 6) + 1);
   const successes = rolls.filter((roll) => roll === 6).length;
 
   if (successes === 0) {
@@ -111,6 +115,7 @@ function rollThreatForUpgrade(upgradeName: string, cost: number): ThreatEntry | 
 
 export async function createParty(name: string) {
   const session = await requireSession();
+  name = z.string().trim().min(1).max(200).parse(name);
 
   if (session.user.role !== "GM" && session.user.role !== "ADMIN") {
     throw new Error("Only GMs and Admins can create parties.");
@@ -142,35 +147,64 @@ export async function createParty(name: string) {
 }
 
 export async function enrollCharacter(partyId: string, characterId: string) {
-  await requirePartyManager(partyId);
+  const { session } = await requirePartyManager(partyId);
 
   const character = await prisma.character.findUnique({
     where: { id: characterId },
-    select: { id: true },
+    select: { id: true, userId: true },
   });
 
   if (!character) {
     throw new Error("Character not found");
   }
 
-  const member = await prisma.partyMember.create({
-    data: {
-      partyId,
-      characterId,
-    },
-  });
+  if (session.user.role !== "ADMIN" && character.userId !== session.user.id) {
+    await prisma.characterInvitation.upsert({
+      where: { partyId_characterId: { partyId, characterId } },
+      update: {},
+      create: { partyId, characterId },
+    });
+  } else {
+    await prisma.partyMember.upsert({
+      where: { partyId_characterId: { partyId, characterId } },
+      update: {},
+      create: { partyId, characterId },
+    });
+  }
 
   revalidatePath("/");
   revalidatePath("/parties");
   revalidatePath(`/parties/${partyId}`);
-  return member;
+}
+
+export async function respondToInvitation(invitationId: string, accept: boolean) {
+  const session = await requireSession();
+  const invitation = await prisma.$transaction(async (tx) => {
+    const invitation = await tx.characterInvitation.findFirst({
+      where: { id: invitationId, character: { userId: session.user.id } },
+      select: { id: true, partyId: true, characterId: true },
+    });
+    if (!invitation) throw new Error("Invitation not found");
+    if (accept) {
+      await tx.partyMember.upsert({
+        where: { partyId_characterId: { partyId: invitation.partyId, characterId: invitation.characterId } },
+        update: {},
+        create: { partyId: invitation.partyId, characterId: invitation.characterId },
+      });
+    }
+    await tx.characterInvitation.delete({ where: { id: invitation.id } });
+    return invitation;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  revalidatePath("/");
+  revalidatePath("/parties");
+  revalidatePath(`/parties/${invitation.partyId}`);
 }
 
 export async function removeCharacter(partyId: string, memberId: string) {
   await requirePartyManager(partyId);
 
   await prisma.partyMember.delete({
-    where: { id: memberId },
+    where: { id: memberId, partyId },
   });
 
   revalidatePath("/");
@@ -183,15 +217,13 @@ export async function updateHeadquarters(
   data: {
     name?: string;
     history?: string;
-    threats?: Prisma.InputJsonValue;
-    developmentPoints?: number;
   }
 ) {
   const headquarters = await requireHeadquartersManager(hqId);
 
   const updated = await prisma.headquarters.update({
     where: { id: hqId },
-    data,
+    data: z.object({ name: z.string().trim().min(1).max(200).optional(), history: z.string().max(50000).optional() }).parse(data),
   });
 
   revalidatePath(`/parties/${headquarters.partyId}`);
@@ -201,42 +233,54 @@ export async function updateHeadquarters(
 
 export async function buyUpgrade(
   hqId: string,
-  type: "facilities" | "contacts" | "personnel",
-  upgrade: { name: string; cost: number; description: string },
-  cost: number
+  type: UpgradeType,
+  upgradeName: string,
 ) {
   const headquarters = await requireHeadquartersManager(hqId);
-  const hq = await prisma.headquarters.findUnique({ where: { id: hqId } });
-
-  if (!hq || hq.developmentPoints < cost) {
-    throw new Error("Insufficient Development Points");
-  }
-
-  const currentList = Array.isArray(hq[type]) ? (hq[type] as Array<{ name?: string }>) : [];
-  if (currentList.some((entry) => entry?.name === upgrade.name)) {
-    throw new Error("Upgrade already owned");
-  }
-
-  const triggeredThreat = rollThreatForUpgrade(upgrade.name, cost);
-  const threatList = toThreatList(hq.threats);
-
-  const updatedHq = await prisma.headquarters.update({
-    where: { id: hqId },
-    data: {
-      developmentPoints: { decrement: cost },
-      [type]: [...currentList, upgrade],
-      threats: triggeredThreat ? [...threatList, triggeredThreat] : threatList,
-    },
+  const upgrade = getUpgrade(type, upgradeName);
+  const result = await serializableTransaction(async (tx) => {
+    const hq = await tx.headquarters.findUniqueOrThrow({ where: { id: hqId } });
+    const currentList = Array.isArray(hq[type]) ? (hq[type] as Array<{ name?: string }>) : [];
+    if (currentList.some((entry) => entry?.name === upgrade.name)) throw new Error("Upgrade already owned");
+    const reserved = await tx.headquarters.updateMany({
+      where: { id: hqId, developmentPoints: { gte: upgrade.cost } },
+      data: { developmentPoints: { decrement: upgrade.cost } },
+    });
+    if (reserved.count !== 1) throw new Error("Insufficient Development Points");
+    const triggeredThreat = rollThreatForUpgrade(upgrade.name, upgrade.cost);
+    const threatList = toThreatList(hq.threats);
+    const updatedHq = await tx.headquarters.update({
+      where: { id: hqId },
+      data: {
+        [type]: [...currentList, upgrade],
+        threats: triggeredThreat ? [...threatList, triggeredThreat] : threatList,
+      },
+    });
+    await tx.headquartersLedgerEntry.create({ data: {
+      headquartersId: hqId, points: -upgrade.cost,
+      description: `Purchased ${upgrade.name}`, actorId: headquarters.session.user.id,
+    } });
+    return { ...updatedHq, threatTriggered: Boolean(triggeredThreat), triggeredThreat };
   });
 
   revalidatePath(`/parties/${headquarters.partyId}`);
   revalidatePath(`/parties/${headquarters.partyId}/hq`);
 
-  return {
-    ...updatedHq,
-    threatTriggered: Boolean(triggeredThreat),
-    triggeredThreat,
-  };
+  return result;
+}
+
+export async function awardDevelopmentPoints(hqId: string, points: number, reason: string) {
+  const headquarters = await requireHeadquartersManager(hqId);
+  const award = z.object({ points: z.number().int().min(1).max(100), reason: z.string().trim().min(1).max(1000) }).parse({ points, reason });
+  await serializableTransaction(async (tx) => {
+    await tx.headquarters.update({ where: { id: hqId }, data: { developmentPoints: { increment: award.points } } });
+    await tx.headquartersLedgerEntry.create({ data: {
+      headquartersId: hqId, points: award.points, description: award.reason, actorId: headquarters.session.user.id,
+    } });
+  });
+  revalidatePath("/");
+  revalidatePath("/parties");
+  revalidatePath(`/parties/${headquarters.partyId}/hq`);
 }
 
 export async function manageTask(
@@ -246,18 +290,24 @@ export async function manageTask(
 ) {
   await requirePartyManager(partyId);
 
+  const taskData = data ? z.object({
+    title: z.string().trim().min(1).max(200),
+    description: z.string().max(20000),
+    status: z.nativeEnum(TaskStatus),
+  }).parse(data) : undefined;
+
   if (taskId && !data) {
-    await prisma.adventureTask.delete({ where: { id: taskId } });
+    await prisma.adventureTask.delete({ where: { id: taskId, partyId } });
   } else if (taskId && data) {
     await prisma.adventureTask.update({
-      where: { id: taskId },
-      data,
+      where: { id: taskId, partyId },
+      data: taskData!,
     });
   } else if (data) {
     await prisma.adventureTask.create({
       data: {
         partyId,
-        ...data,
+        ...taskData!,
       },
     });
   }
@@ -268,6 +318,7 @@ export async function manageTask(
 }
 
 export async function saveMapMarker(mapId: string, markers: Prisma.InputJsonValue) {
+  const safeMarkers = z.array(z.object({ x: z.number().min(0).max(100), y: z.number().min(0).max(100), label: z.string().max(500) })).max(1000).parse(markers);
   const map = await prisma.gameMap.findUnique({
     where: { id: mapId },
     select: { id: true, partyId: true },
@@ -281,7 +332,7 @@ export async function saveMapMarker(mapId: string, markers: Prisma.InputJsonValu
 
   const updated = await prisma.gameMap.update({
     where: { id: mapId },
-    data: { markers },
+    data: { markers: safeMarkers },
   });
 
   revalidatePath(`/parties/${map.partyId}/atlas`);
@@ -290,6 +341,8 @@ export async function saveMapMarker(mapId: string, markers: Prisma.InputJsonValu
 
 export async function createMap(partyId: string, name: string, imageUrl: string) {
   await requirePartyManager(partyId);
+  name = z.string().trim().min(1).max(200).parse(name);
+  imageUrl = z.string().max(2048).refine((url) => /^https?:\/\//i.test(url) || (url.startsWith("/") && !url.startsWith("//")), "Use an HTTP(S) URL or a local image path").parse(imageUrl);
 
   const map = await prisma.gameMap.create({
     data: {
@@ -308,7 +361,7 @@ export async function updatePartyNotes(partyId: string, notes: string) {
 
   await prisma.party.update({
     where: { id: partyId },
-    data: { notes },
+    data: { notes: sanitizeNotes(z.string().max(100000).parse(notes)) },
   });
 
   revalidatePath(`/parties/${partyId}`);
@@ -323,6 +376,8 @@ export async function upsertPartyStashItem(
 ) {
   await requirePartyManager(partyId);
 
+  quantity = z.number().int().min(0).max(9999).parse(quantity);
+  notes = z.string().max(10000).optional().parse(notes);
   if (quantity <= 0) {
     await prisma.partyStashItem.deleteMany({
       where: {
@@ -374,6 +429,8 @@ export async function createMystery(
   data: { title: string; summary: string; hook?: string; status?: MysteryStatus }
 ) {
   await requirePartyManager(partyId);
+  data = z.object({ title: z.string().trim().min(1).max(200), summary: z.string().trim().min(1).max(50000),
+    hook: z.string().max(20000).optional(), status: z.nativeEnum(MysteryStatus).optional() }).parse(data);
 
   const mystery = await prisma.mystery.create({
     data: {
@@ -403,11 +460,15 @@ export async function updateMystery(
 ) {
   const mystery = await requireMysteryManager(mysteryId);
 
+  data = z.object({ title: z.string().trim().min(1).max(200).optional(), summary: z.string().trim().min(1).max(50000).optional(),
+    hook: z.string().max(20000).optional(), aftermath: z.string().max(50000).optional(), status: z.nativeEnum(MysteryStatus).optional() }).parse(data);
   const updated = await prisma.mystery.update({
     where: { id: mysteryId },
     data: {
       ...data,
-      completedAt: data.status === "RESOLVED" || data.status === "ARCHIVED" ? new Date() : null,
+      ...(data.status ? {
+        completedAt: data.status === "RESOLVED" || data.status === "ARCHIVED" ? new Date() : null,
+      } : {}),
     },
   });
 
@@ -419,6 +480,22 @@ export async function updateMystery(
 
 export async function archiveMystery(mysteryId: string) {
   return updateMystery(mysteryId, { status: "ARCHIVED" });
+}
+
+export async function setMysteryVisibility(kind: "mystery" | "clue" | "entity" | "location", id: string, visible: boolean) {
+  z.boolean().parse(visible);
+  let mysteryId = id;
+  if (kind === "clue") mysteryId = (await prisma.mysteryClue.findUniqueOrThrow({ where: { id } })).mysteryId;
+  else if (kind === "entity") mysteryId = (await prisma.mysteryEntity.findUniqueOrThrow({ where: { id } })).mysteryId;
+  else if (kind === "location") mysteryId = (await prisma.mysteryLocation.findUniqueOrThrow({ where: { id } })).mysteryId;
+  else if (kind !== "mystery") throw new Error("Invalid visibility target");
+  const mystery = await requireMysteryManager(mysteryId);
+  if (kind === "mystery") await prisma.mystery.update({ where: { id }, data: { isPublished: visible } });
+  else if (kind === "clue") await prisma.mysteryClue.update({ where: { id }, data: { isRevealed: visible } });
+  else if (kind === "entity") await prisma.mysteryEntity.update({ where: { id }, data: { isRevealed: visible } });
+  else await prisma.mysteryLocation.update({ where: { id }, data: { isRevealed: visible } });
+  revalidatePath("/");
+  revalidatePath(`/parties/${mystery.partyId}/mysteries`);
 }
 
 export async function addMysteryClue(mysteryId: string, content: string) {

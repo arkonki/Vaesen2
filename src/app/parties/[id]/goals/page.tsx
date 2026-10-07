@@ -22,8 +22,8 @@ export default async function GoalsPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-white">Goals</h1>
-        <p className="mt-2 text-neutral-400">Track active objectives, unresolved leads, and campaign follow-up work.</p>
+        <h1 className="text-3xl font-bold text-[var(--ledger-ink)]">Goals</h1>
+        <p className="mt-2 text-[var(--ledger-ink-soft)]">Track active objectives, unresolved leads, and campaign follow-up work.</p>
       </div>
 
       <TaskBoard partyId={id} initialTasks={party.tasks} isGM={access.isGM} />

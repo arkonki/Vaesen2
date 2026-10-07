@@ -119,15 +119,15 @@ export default function CompendiumClient({
 
   return (
     <div className="space-y-6">
-      <header className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+      <header className="rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-white">Compendium</h1>
-            <p className="mt-2 text-neutral-400">
+            <h1 className="text-4xl font-extrabold tracking-tight text-[var(--ledger-ink)]">Compendium</h1>
+            <p className="mt-2 text-[var(--ledger-ink-soft)]">
               Searchable rules and world reference for players, game masters, and admins.
             </p>
           </div>
-          <span className="rounded-full border border-neutral-700 bg-neutral-950 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-neutral-300">
+          <span className="rounded-full border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--ledger-ink)]">
             Role: {role}
           </span>
         </div>
@@ -137,14 +137,14 @@ export default function CompendiumClient({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search current category..."
-            className="rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-indigo-500"
+            className="rounded-md border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none focus:border-[var(--ledger-accent)]/65"
           />
 
           {activeTab === "items" ? (
             <select
               value={itemTypeFilter}
               onChange={(event) => setItemTypeFilter(event.target.value as "ALL" | ItemType)}
-              className="rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-indigo-500"
+              className="rounded-md border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none focus:border-[var(--ledger-accent)]/65"
             >
               <option value="ALL">All Item Types</option>
               <option value="WEAPON">Weapons</option>
@@ -158,7 +158,7 @@ export default function CompendiumClient({
             <select
               value={talentTypeFilter}
               onChange={(event) => setTalentTypeFilter(event.target.value as "ALL" | TalentType)}
-              className="rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-indigo-500"
+              className="rounded-md border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none focus:border-[var(--ledger-accent)]/65"
             >
               <option value="ALL">All Talent Types</option>
               <option value="GENERAL">General</option>
@@ -176,8 +176,8 @@ export default function CompendiumClient({
             onClick={() => setActiveTab(tab.id)}
             className={`rounded-md border px-4 py-2 text-sm font-semibold transition-colors ${
               activeTab === tab.id
-                ? "border-indigo-400 bg-indigo-500/20 text-indigo-100"
-                : "border-neutral-700 bg-neutral-900 text-neutral-400 hover:text-white"
+                ? "border-[var(--ledger-accent)]/65 bg-[rgba(127,48,40,0.12)] text-[var(--ledger-accent)]"
+                : "border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] text-[var(--ledger-ink-soft)] hover:text-[var(--ledger-ink)]"
             }`}
           >
             {tab.label}
@@ -188,9 +188,9 @@ export default function CompendiumClient({
       {activeTab === "rules" ? (
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {GENERAL_RULES_SECTIONS.map((section) => (
-            <article key={section.title} className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-              <h2 className="text-lg font-bold text-white">{section.title}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-neutral-300">{section.body}</p>
+            <article key={section.title} className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
+              <h2 className="text-lg font-bold text-[var(--ledger-ink)]">{section.title}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-[var(--ledger-ink)]">{section.body}</p>
             </article>
           ))}
         </section>
@@ -199,15 +199,15 @@ export default function CompendiumClient({
       {activeTab === "items" ? (
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredItems.map((item) => (
-            <article key={item.id} className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+            <article key={item.id} className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
               <div className="flex items-start justify-between gap-2">
-                <h2 className="text-lg font-bold text-white">{item.name}</h2>
-                <span className="rounded-full bg-neutral-800 px-2 py-1 text-xs font-semibold text-neutral-300">
+                <h2 className="text-lg font-bold text-[var(--ledger-ink)]">{item.name}</h2>
+                <span className="rounded-full bg-[var(--ledger-paper-deep)] px-2 py-1 text-xs font-semibold text-[var(--ledger-ink)]">
                   {item.type}
                 </span>
               </div>
-              <p className="mt-2 text-sm text-neutral-300">{item.description || "No description."}</p>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs text-neutral-400">
+              <p className="mt-2 text-sm text-[var(--ledger-ink)]">{item.description || "No description."}</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--ledger-ink-soft)]">
                 <span>Bonus +{item.bonus}</span>
                 <span>Availability {item.availability}</span>
                 {item.damage !== null ? <span>Damage {item.damage}</span> : null}
@@ -216,50 +216,50 @@ export default function CompendiumClient({
               </div>
             </article>
           ))}
-          {filteredItems.length === 0 ? <p className="text-sm text-neutral-500">No items match this filter.</p> : null}
+          {filteredItems.length === 0 ? <p className="text-sm text-[var(--ledger-ink-soft)]">No items match this filter.</p> : null}
         </section>
       ) : null}
 
       {activeTab === "talents" ? (
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {filteredTalents.map((talent) => (
-            <article key={talent.id} className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+            <article key={talent.id} className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-bold text-white">{talent.name}</h2>
-                <span className="rounded-full bg-neutral-800 px-2 py-1 text-xs font-semibold text-neutral-300">
+                <h2 className="text-lg font-bold text-[var(--ledger-ink)]">{talent.name}</h2>
+                <span className="rounded-full bg-[var(--ledger-paper-deep)] px-2 py-1 text-xs font-semibold text-[var(--ledger-ink)]">
                   {talent.type}
                 </span>
               </div>
-              <p className="mt-2 text-sm text-neutral-300">{talent.description}</p>
+              <p className="mt-2 text-sm text-[var(--ledger-ink)]">{talent.description}</p>
             </article>
           ))}
-          {filteredTalents.length === 0 ? <p className="text-sm text-neutral-500">No talents match this filter.</p> : null}
+          {filteredTalents.length === 0 ? <p className="text-sm text-[var(--ledger-ink-soft)]">No talents match this filter.</p> : null}
         </section>
       ) : null}
 
       {activeTab === "archetypes" ? (
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredArchetypes.map((archetype) => (
-            <article key={archetype.id} className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-              <h2 className="text-lg font-bold text-white">{archetype.name}</h2>
-              <p className="mt-2 text-sm text-neutral-300">Main Attribute: {archetype.mainAttribute}</p>
-              <p className="text-sm text-neutral-300">Main Skill: {archetype.mainSkill}</p>
-              <p className="mt-2 text-xs text-neutral-400">
+            <article key={archetype.id} className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
+              <h2 className="text-lg font-bold text-[var(--ledger-ink)]">{archetype.name}</h2>
+              <p className="mt-2 text-sm text-[var(--ledger-ink)]">Main Attribute: {archetype.mainAttribute}</p>
+              <p className="text-sm text-[var(--ledger-ink)]">Main Skill: {archetype.mainSkill}</p>
+              <p className="mt-2 text-xs text-[var(--ledger-ink-soft)]">
                 Starting resources: {archetype.startingResourcesMin} - {archetype.startingResourcesMax}
               </p>
             </article>
           ))}
-          {filteredArchetypes.length === 0 ? <p className="text-sm text-neutral-500">No archetypes match this search.</p> : null}
+          {filteredArchetypes.length === 0 ? <p className="text-sm text-[var(--ledger-ink-soft)]">No archetypes match this search.</p> : null}
         </section>
       ) : null}
 
       {activeTab === "npcs" && canViewGmContent ? (
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {filteredNpcs.map((npc) => (
-            <article key={npc.id} className="rounded-xl border border-amber-700/30 bg-neutral-900 p-5">
-              <h2 className="text-lg font-bold text-white">{npc.name}</h2>
-              <p className="mt-2 text-sm text-neutral-300">{npc.description}</p>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-neutral-400">
+            <article key={npc.id} className="rounded-xl border border-[var(--ledger-accent)]/65 bg-[var(--ledger-surface-strong)] p-5">
+              <h2 className="text-lg font-bold text-[var(--ledger-ink)]">{npc.name}</h2>
+              <p className="mt-2 text-sm text-[var(--ledger-ink)]">{npc.description}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--ledger-ink-soft)]">
                 <span>Physique {npc.physique}</span>
                 <span>Precision {npc.precision}</span>
                 <span>Logic {npc.logic}</span>
@@ -269,35 +269,35 @@ export default function CompendiumClient({
               </div>
             </article>
           ))}
-          {filteredNpcs.length === 0 ? <p className="text-sm text-neutral-500">No NPCs match this search.</p> : null}
+          {filteredNpcs.length === 0 ? <p className="text-sm text-[var(--ledger-ink-soft)]">No NPCs match this search.</p> : null}
         </section>
       ) : null}
 
       {activeTab === "vaesen" && canViewGmContent ? (
         <section className="grid grid-cols-1 gap-4">
           {filteredVaesen.map((entry) => (
-            <article key={entry.id} className="rounded-xl border border-red-700/30 bg-neutral-900 p-5">
+            <article key={entry.id} className="rounded-xl border border-red-700/30 bg-[var(--ledger-surface-strong)] p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-2xl font-bold text-white">{entry.name}</h2>
-                <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-200">
+                <h2 className="text-2xl font-bold text-[var(--ledger-ink)]">{entry.name}</h2>
+                <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-semibold text-[var(--ledger-danger)]">
                   Fear {entry.fear}
                 </span>
               </div>
-              <p className="mt-2 text-sm text-neutral-300">{entry.description}</p>
-              <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-neutral-400 sm:grid-cols-4">
+              <p className="mt-2 text-sm text-[var(--ledger-ink)]">{entry.description}</p>
+              <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-[var(--ledger-ink-soft)] sm:grid-cols-4">
                 <span>Might {entry.might}</span>
                 <span>Body {entry.bodyControl}</span>
                 <span>Magic {entry.magic}</span>
                 <span>Manipulation {entry.manipulation}</span>
               </div>
               <div className="mt-4 space-y-2 text-sm">
-                <p><span className="font-semibold text-neutral-200">Magical Powers:</span> {entry.magicalPowers}</p>
-                <p><span className="font-semibold text-neutral-200">Ritual:</span> {entry.ritual}</p>
-                <p><span className="font-semibold text-neutral-200">Secret:</span> {entry.secret}</p>
+                <p><span className="font-semibold text-[var(--ledger-ink)]">Magical Powers:</span> {entry.magicalPowers}</p>
+                <p><span className="font-semibold text-[var(--ledger-ink)]">Ritual:</span> {entry.ritual}</p>
+                <p><span className="font-semibold text-[var(--ledger-ink)]">Secret:</span> {entry.secret}</p>
               </div>
             </article>
           ))}
-          {filteredVaesen.length === 0 ? <p className="text-sm text-neutral-500">No Vaesen match this search.</p> : null}
+          {filteredVaesen.length === 0 ? <p className="text-sm text-[var(--ledger-ink-soft)]">No Vaesen match this search.</p> : null}
         </section>
       ) : null}
     </div>

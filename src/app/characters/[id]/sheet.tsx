@@ -271,6 +271,8 @@ export default function CharacterSheet(props: CharacterSheetProps) {
   const [journalStatus, setJournalStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const initialJournalState = useRef(true);
+  const journalQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const [mutationError, setMutationError] = useState("");
 
   const groupedInventory = useMemo(() => {
     const weapons = inventory.filter((entry) => entry.item.type === "WEAPON");
@@ -288,19 +290,26 @@ export default function CharacterSheet(props: CharacterSheetProps) {
   }, [inventory]);
 
   async function persistConditions(nextPhysical: ConditionState, nextMental: ConditionState) {
+    const previousPhysical = physicalConditions;
+    const previousMental = mentalConditions;
+    setMutationError("");
     setConditionSaving(true);
     try {
       await updateCharacterConditions(characterId, {
         physicalConditions: nextPhysical,
         mentalConditions: nextMental,
       });
+    } catch {
+      setPhysicalConditions(previousPhysical);
+      setMentalConditions(previousMental);
+      setMutationError("Conditions could not be saved. Please try again.");
     } finally {
       setConditionSaving(false);
     }
   }
 
   async function handleConditionToggle(scope: "physical" | "mental", key: string) {
-    if (!canEdit) {
+    if (!canEdit || conditionSaving) {
       return;
     }
 
@@ -317,7 +326,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
   }
 
   async function handleXpToggle(slot: number) {
-    if (!canEdit) {
+    if (!canEdit || xpSaving) {
       return;
     }
 
@@ -325,8 +334,12 @@ export default function CharacterSheet(props: CharacterSheetProps) {
     setExperiencePoints(nextXp);
 
     setXpSaving(true);
+    setMutationError("");
     try {
       await updateCharacterExperience(characterId, nextXp);
+    } catch {
+      setExperiencePoints(experiencePoints);
+      setMutationError("Experience could not be saved. Please try again.");
     } finally {
       setXpSaving(false);
     }
@@ -347,7 +360,9 @@ export default function CharacterSheet(props: CharacterSheetProps) {
 
     const timer = setTimeout(async () => {
       try {
-        await updateCharacterJournal(characterId, { notes, relationships });
+        const save = journalQueue.current.catch(() => undefined).then(() => updateCharacterJournal(characterId, { notes, relationships }));
+        journalQueue.current = save;
+        await save;
         if (!cancelled) {
           setJournalStatus("saved");
         }
@@ -376,6 +391,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
 
   return (
     <div className="ledger-page space-y-6">
+      {mutationError && <p role="alert" className="ledger-panel p-3">{mutationError}</p>}
       <section className="ledger-sheet">
         <div className="ledger-top-grid">
           <div className="space-y-2">
@@ -407,7 +423,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                   <button
                     key={index}
                     type="button"
-                    disabled={!canEdit}
+                    disabled={!canEdit || xpSaving}
                     onClick={() => handleXpToggle(index)}
                     className={cn("ledger-xp-mark", index < experiencePoints && "is-filled")}
                     aria-label={`Experience slot ${index + 1}`}
@@ -516,7 +532,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                         key={condition.key}
                         label={condition.label}
                         checked={Boolean(physicalConditions[condition.key])}
-                        disabled={!canEdit}
+                        disabled={!canEdit || conditionSaving}
                         onChange={() => handleConditionToggle("physical", condition.key)}
                       />
                     ))}
@@ -531,7 +547,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                         key={condition.key}
                         label={condition.label}
                         checked={Boolean(mentalConditions[condition.key])}
-                        disabled={!canEdit}
+                        disabled={!canEdit || conditionSaving}
                         onChange={() => handleConditionToggle("mental", condition.key)}
                       />
                     ))}

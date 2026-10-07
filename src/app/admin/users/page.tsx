@@ -1,10 +1,14 @@
 import prisma from "@/lib/prisma";
 import UserAdmin from "./user-admin";
+import { publicUserSelect } from "@/lib/security";
+import { requireAdminSession } from "@/lib/access";
 
 export default async function AdminUsersPage() {
+  await requireAdminSession();
   const rawUsers = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
-    include: {
+    select: {
+      ...publicUserSelect,
       _count: {
         select: {
           characters: true,
@@ -22,8 +26,8 @@ export default async function AdminUsersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white tracking-tight">Users</h1>
-        <p className="mt-2 max-w-2xl text-neutral-400">
+        <h1 className="text-3xl font-bold text-[var(--ledger-ink)] tracking-tight">Users</h1>
+        <p className="mt-2 max-w-2xl text-[var(--ledger-ink-soft)]">
           Create accounts, assign roles, and rotate passwords for the whole table.
         </p>
       </div>
