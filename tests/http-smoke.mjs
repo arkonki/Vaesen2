@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../prisma/client.js";
 import bcrypt from "bcryptjs";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
@@ -7,7 +7,7 @@ if (!databaseUrl || !new URL(databaseUrl).pathname.endsWith("_test")) {
   throw new Error("HTTP smoke tests require a separate TEST_DATABASE_URL ending in _test");
 }
 const base = process.env.SMOKE_BASE_URL || "http://localhost:3001";
-const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
+const prisma = createPrismaClient(databaseUrl);
 const prefix = `smoke-${crypto.randomUUID()}`;
 const password = `test-password-${crypto.randomUUID()}`;
 const users = [];

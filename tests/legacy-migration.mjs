@@ -3,10 +3,10 @@ import { mkdtemp, cp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '../prisma/client.js';
 const url = process.env.MIGRATION_TEST_DATABASE_URL;
 if (!url || !new URL(url).pathname.endsWith('_test')) throw new Error('Use a fresh isolated MIGRATION_TEST_DATABASE_URL ending in _test');
-const prisma = new PrismaClient({ datasources: { db: { url } } });
+const prisma = createPrismaClient(url);
 const temp = await mkdtemp(path.join(tmpdir(),'vaesen-migration-'));
 let userId;
 function migrate(schema) {
@@ -14,7 +14,7 @@ function migrate(schema) {
   if (result.status !== 0) throw new Error(result.stdout + result.stderr);
 }
 try {
-  const tables = await prisma.$queryRaw`SELECT tablename FROM pg_tables WHERE schemaname='public'`;
+  const tables = await prisma.$queryRaw`SELECT tablename::text FROM pg_tables WHERE schemaname='public'`;
   assert.equal(tables.length,0,'Migration test database must be empty');
   await cp('prisma/schema.prisma',path.join(temp,'schema.prisma'));
   for (const name of await readdir('prisma/migrations')) {

@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Prisma runs this seed as CommonJS. */
 const bcrypt = require("bcryptjs");
-const { PrismaClient, ItemType, Role, TalentType } = require("@prisma/client");
+const { ItemType, Role, TalentType } = require("@prisma/client");
+const { createPrismaClient } = require("./client");
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || "admin@vaesen.local";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD;

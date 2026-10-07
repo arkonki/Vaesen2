@@ -9,6 +9,7 @@ import {
   vi,
 } from "vitest";
 const state = vi.hoisted(() => {
+  process.env.DATABASE_URL ||= "postgresql://test-only@127.0.0.1:1/not_configured_test";
   if (process.env.TEST_DATABASE_URL) {
     if (!new URL(process.env.TEST_DATABASE_URL).pathname.endsWith("_test"))
       throw new Error("Use an isolated test database");

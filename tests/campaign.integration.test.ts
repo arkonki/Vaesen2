@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => {
+  process.env.DATABASE_URL ||= "postgresql://test-only@127.0.0.1:1/not_configured_test";
   if (process.env.TEST_DATABASE_URL) {
     const database = new URL(process.env.TEST_DATABASE_URL).pathname;
     if (!database.endsWith("_test")) throw new Error("Integration tests require a separate database ending in _test");
