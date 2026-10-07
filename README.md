@@ -94,3 +94,30 @@ For real HTTP login and redaction checks, run the production app against that sa
 The integration suite creates and removes its own fixture records and covers cross-party mutations, invitation consent, character validation, session revocation, and concurrent HQ purchases. CI runs migrations, unit/integration tests, and HTTP smoke checks against disposable PostgreSQL.
 
 Five development-only advisories currently remain in ESLint's `braces` dependency chain. The production dependency audit is checked separately; no automatic major-version downgrade is applied to silence development tooling advisories.
+
+## Castle Gyllencreutz
+
+The HQ page now has Castle, Catalogue, Benefits, Development, GM-only Threats, and History sections. The 49 core-book upgrade definitions are versioned in `src/lib/hq-upgrades.ts`, with summarized benefits and printed-page references.
+
+- New castles start with the free Library and Butler Algot Frisk. Existing castles receive missing starting assets during migration without changing their balance.
+- Purchases enforce permanent party Resources, archetypes, Inspiration, required upgrades, campaign evidence and maximum levels. Contacts/personnel need names and descriptions. GM prerequisite exceptions require an audited reason; they cannot bypass prices or level limits.
+- Introduce a discovered facility to share its clue. Players do not receive its catalogue identity until it is acquired. The GM buys it when the group agrees to spend the points.
+- An upgrade occasion remains open until the GM selects **End Upgrade Occasion**. The first purchase rolls its paid DP cost; each subsequent purchase adds one die per earlier purchase. Difference Engine reduces facility costs by one. Successful secret rolls create pending threats for GM selection, with editable countdowns and resolution.
+- Development reviews record eight answers after a resolved/archived mystery and award DP once. Manual awards remain available for house rules and corrections.
+- Benefits are recorded separately for Function and Asset, per mystery and purchased level. Infirmary/Chapel/Treasure Chamber support the per-investigator exception; Annals XP is once per named gaming session. Duplicate session labels return the same session.
+- Record recovery benefits before opening a recovery roller. Recovery ignores conditions; applicable castle bonuses are added and push permission is explicit. Defect/Insight recovery outcomes remain GM/player-adjudicated and recorded in the character journal; permanent affliction management is not automated.
+- Healing can update conditions directly. House Physician supports individual treatment choices in a group scene. Caretaker can restore a damaged facility. Narrative clues, travel, free successes and memento recovery require an explicit outcome/confirmation rather than invented automatic results.
+- Temporary Resources, Capital and advantages appear separately on the character sheet. Banker bonuses require **End Scene Effect**; mystery-duration bonuses stop being active when a mystery is resolved. Annals awards do not truncate XP above the ten-checkbox tracker.
+- Prepared database items are separate from permanent inventory and appear only for preparation/active mysteries. Database names/types/availability must match the supplying upgrade; add missing items through Admin before granting them. Mechanical inventions still require GM confirmation of suitability.
+- Equipment has a non-destructive storage-retention review. Cellar Vault/Occult Archive capacity applies to common/magical retained quantities respectively. No character or stash equipment is silently deleted. Personal item exemptions and the one-new-item rule remain a group review, not automatic deletion.
+- Personnel statistics are validated against book budgets and toughness. Recruit Motivation/Dark Secret are GM-only; names, descriptions and relationships are shared.
+- The migration preserves original JSON for audit and imports recognized upgrades. Unknown legacy names appear as **REVIEW** assets; map them to a canonical upgrade when appropriate. This does not reprice old purchases.
+
+The book leaves narrative decisions to the GM. This implementation counts distinct active facilities for the Fixer's requirement, uses the discounted paid cost for threat dice, and treats repair/status restoration as a GM-controlled workflow. The GM exception audit supports campaign-specific prerequisite rulings.
+
+```sh
+# Only against a fresh, disposable database ending in _test:
+MIGRATION_TEST_DATABASE_URL="postgresql://.../vaesen_legacy_test" npm run test:migration
+```
+
+This additional test applies the earlier migrations, inserts a simulated legacy castle, then verifies that the castle migration preserves balances, accounts, threats, custom assets and original JSON. Never run it against your application database.

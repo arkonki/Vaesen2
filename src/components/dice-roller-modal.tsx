@@ -10,6 +10,7 @@ type DiceRollerModalProps = {
   title?: string;
   triggerLabel?: string;
   triggerVariant?: "ledger" | "header";
+  allowPush?: boolean;
 };
 
 const ROLL_ANIMATION_MS = 1200;
@@ -61,6 +62,12 @@ function DiceRollerDialog({ request }: { request: DiceRollerModalProps | null })
 
   useEffect(() => {
     if (request) {
+      // A new roll context must not receive the previous animation's result.
+      if (rollingIntervalRef.current) window.clearInterval(rollingIntervalRef.current);
+      if (rollingTimeoutRef.current) window.clearTimeout(rollingTimeoutRef.current);
+      setIsRolling(false);
+      setResults([]);
+      setHasPushedCurrentRoll(false);
       setDiceCount(Math.min(50, Math.max(0, Math.trunc(request.initialDiceCount || 0))));
       setIsOpen(true);
     }
@@ -119,6 +126,7 @@ function DiceRollerDialog({ request }: { request: DiceRollerModalProps | null })
 
   const successes = useMemo(() => results.filter((value) => value === 6).length, [results]);
   const canPush =
+    request?.allowPush !== false &&
     results.length === diceCount &&
     diceCount > 0 &&
     !hasPushedCurrentRoll &&

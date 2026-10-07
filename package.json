@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:seed": "prisma db seed",
     "test": "vitest run",
-    "test:integration": "vitest run tests/campaign.integration.test.ts",
+    "test:integration": "vitest run tests/campaign.integration.test.ts tests/castle.integration.test.ts",
+    "test:migration": "node tests/legacy-migration.mjs",
     "typecheck": "tsc --noEmit",
     "test:http": "node tests/http-smoke.mjs"
   },

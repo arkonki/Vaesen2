@@ -14,24 +14,8 @@ import { z } from "zod";
 import { sanitizeNotes } from "@/lib/notes";
 import { getUpgrade, UpgradeType } from "@/lib/hq-upgrades";
 import { serializableTransaction } from "@/lib/transaction";
-
-type ThreatEntry = {
-  id: string;
-  createdAt: string;
-  title: string;
-  description: string;
-  sourceUpgrade: string;
-  status: "ACTIVE" | "RESOLVED";
-};
-
-const THREAT_CATALOGUE = [
-  "A suspicious journalist has started asking questions about the Society.",
-  "A priest believes the party is harboring forbidden rites.",
-  "A criminal gang has noticed the castle and wants in.",
-  "A vaesen has taken interest in the headquarters and is testing its defenses.",
-  "A government official is probing the party's finances and legal standing.",
-  "A restless spirit has awakened in a sealed wing of the headquarters.",
-];
+import { purchaseCastleUpgrade } from "./castle-actions";
+import { HQ_UPGRADES } from "@/lib/hq-upgrades";
 
 async function requireSession() {
   const session = await getAppSession();
@@ -89,30 +73,6 @@ async function requireMysteryManager(mysteryId: string) {
   return mystery;
 }
 
-function toThreatList(value: unknown): ThreatEntry[] {
-  return Array.isArray(value) ? (value as ThreatEntry[]) : [];
-}
-
-function rollThreatForUpgrade(upgradeName: string, cost: number): ThreatEntry | null {
-  const rolls = Array.from({ length: Math.max(1, cost) }, () => Math.floor(Math.random() * 6) + 1);
-  const successes = rolls.filter((roll) => roll === 6).length;
-
-  if (successes === 0) {
-    return null;
-  }
-
-  const description = THREAT_CATALOGUE[(successes - 1) % THREAT_CATALOGUE.length];
-
-  return {
-    id: crypto.randomUUID(),
-    createdAt: new Date().toISOString(),
-    title: `Threat after ${upgradeName}`,
-    description,
-    sourceUpgrade: upgradeName,
-    status: "ACTIVE",
-  };
-}
-
 export async function createParty(name: string) {
   const session = await requireSession();
   name = z.string().trim().min(1).max(200).parse(name);
@@ -129,7 +89,7 @@ export async function createParty(name: string) {
       },
     });
 
-    await tx.headquarters.create({
+    const hq = await tx.headquarters.create({
       data: {
         partyId: createdParty.id,
         name: "Castle Gyllencreutz",
@@ -138,6 +98,20 @@ export async function createParty(name: string) {
       },
     });
 
+    await tx.castleUpgrade.createMany({
+      data: HQ_UPGRADES.filter((u) => u.starting).map((u) => ({
+        headquartersId: hq.id,
+        key: u.key,
+        name: u.name,
+        category: u.category,
+        ...(u.key === "algot-frisk"
+          ? {
+              personName: "Algot Frisk",
+              personDescription: "The Society castle steward",
+            }
+          : {}),
+      })),
+    });
     return createdParty;
   });
 
@@ -177,24 +151,38 @@ export async function enrollCharacter(partyId: string, characterId: string) {
   revalidatePath(`/parties/${partyId}`);
 }
 
-export async function respondToInvitation(invitationId: string, accept: boolean) {
+export async function respondToInvitation(
+  invitationId: string,
+  accept: boolean,
+) {
   const session = await requireSession();
-  const invitation = await prisma.$transaction(async (tx) => {
-    const invitation = await tx.characterInvitation.findFirst({
-      where: { id: invitationId, character: { userId: session.user.id } },
-      select: { id: true, partyId: true, characterId: true },
-    });
-    if (!invitation) throw new Error("Invitation not found");
-    if (accept) {
-      await tx.partyMember.upsert({
-        where: { partyId_characterId: { partyId: invitation.partyId, characterId: invitation.characterId } },
-        update: {},
-        create: { partyId: invitation.partyId, characterId: invitation.characterId },
+  const invitation = await prisma.$transaction(
+    async (tx) => {
+      const invitation = await tx.characterInvitation.findFirst({
+        where: { id: invitationId, character: { userId: session.user.id } },
+        select: { id: true, partyId: true, characterId: true },
       });
-    }
-    await tx.characterInvitation.delete({ where: { id: invitation.id } });
-    return invitation;
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      if (!invitation) throw new Error("Invitation not found");
+      if (accept) {
+        await tx.partyMember.upsert({
+          where: {
+            partyId_characterId: {
+              partyId: invitation.partyId,
+              characterId: invitation.characterId,
+            },
+          },
+          update: {},
+          create: {
+            partyId: invitation.partyId,
+            characterId: invitation.characterId,
+          },
+        });
+      }
+      await tx.characterInvitation.delete({ where: { id: invitation.id } });
+      return invitation;
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
   revalidatePath("/");
   revalidatePath("/parties");
   revalidatePath(`/parties/${invitation.partyId}`);
@@ -217,13 +205,18 @@ export async function updateHeadquarters(
   data: {
     name?: string;
     history?: string;
-  }
+  },
 ) {
   const headquarters = await requireHeadquartersManager(hqId);
 
   const updated = await prisma.headquarters.update({
     where: { id: hqId },
-    data: z.object({ name: z.string().trim().min(1).max(200).optional(), history: z.string().max(50000).optional() }).parse(data),
+    data: z
+      .object({
+        name: z.string().trim().min(1).max(200).optional(),
+        history: z.string().max(50000).optional(),
+      })
+      .parse(data),
   });
 
   revalidatePath(`/parties/${headquarters.partyId}`);
@@ -236,47 +229,38 @@ export async function buyUpgrade(
   type: UpgradeType,
   upgradeName: string,
 ) {
-  const headquarters = await requireHeadquartersManager(hqId);
   const upgrade = getUpgrade(type, upgradeName);
-  const result = await serializableTransaction(async (tx) => {
-    const hq = await tx.headquarters.findUniqueOrThrow({ where: { id: hqId } });
-    const currentList = Array.isArray(hq[type]) ? (hq[type] as Array<{ name?: string }>) : [];
-    if (currentList.some((entry) => entry?.name === upgrade.name)) throw new Error("Upgrade already owned");
-    const reserved = await tx.headquarters.updateMany({
-      where: { id: hqId, developmentPoints: { gte: upgrade.cost } },
-      data: { developmentPoints: { decrement: upgrade.cost } },
-    });
-    if (reserved.count !== 1) throw new Error("Insufficient Development Points");
-    const triggeredThreat = rollThreatForUpgrade(upgrade.name, upgrade.cost);
-    const threatList = toThreatList(hq.threats);
-    const updatedHq = await tx.headquarters.update({
-      where: { id: hqId },
-      data: {
-        [type]: [...currentList, upgrade],
-        threats: triggeredThreat ? [...threatList, triggeredThreat] : threatList,
-      },
-    });
-    await tx.headquartersLedgerEntry.create({ data: {
-      headquartersId: hqId, points: -upgrade.cost,
-      description: `Purchased ${upgrade.name}`, actorId: headquarters.session.user.id,
-    } });
-    return { ...updatedHq, threatTriggered: Boolean(triggeredThreat), triggeredThreat };
+  return purchaseCastleUpgrade(hqId, {
+    key: upgrade.key,
+    requestId: crypto.randomUUID(),
   });
-
-  revalidatePath(`/parties/${headquarters.partyId}`);
-  revalidatePath(`/parties/${headquarters.partyId}/hq`);
-
-  return result;
 }
 
-export async function awardDevelopmentPoints(hqId: string, points: number, reason: string) {
+export async function awardDevelopmentPoints(
+  hqId: string,
+  points: number,
+  reason: string,
+) {
   const headquarters = await requireHeadquartersManager(hqId);
-  const award = z.object({ points: z.number().int().min(1).max(100), reason: z.string().trim().min(1).max(1000) }).parse({ points, reason });
+  const award = z
+    .object({
+      points: z.number().int().min(1).max(100),
+      reason: z.string().trim().min(1).max(1000),
+    })
+    .parse({ points, reason });
   await serializableTransaction(async (tx) => {
-    await tx.headquarters.update({ where: { id: hqId }, data: { developmentPoints: { increment: award.points } } });
-    await tx.headquartersLedgerEntry.create({ data: {
-      headquartersId: hqId, points: award.points, description: award.reason, actorId: headquarters.session.user.id,
-    } });
+    await tx.headquarters.update({
+      where: { id: hqId },
+      data: { developmentPoints: { increment: award.points } },
+    });
+    await tx.headquartersLedgerEntry.create({
+      data: {
+        headquartersId: hqId,
+        points: award.points,
+        description: award.reason,
+        actorId: headquarters.session.user.id,
+      },
+    });
   });
   revalidatePath("/");
   revalidatePath("/parties");
@@ -286,15 +270,19 @@ export async function awardDevelopmentPoints(hqId: string, points: number, reaso
 export async function manageTask(
   partyId: string,
   taskId?: string,
-  data?: { title: string; description: string; status: TaskStatus }
+  data?: { title: string; description: string; status: TaskStatus },
 ) {
   await requirePartyManager(partyId);
 
-  const taskData = data ? z.object({
-    title: z.string().trim().min(1).max(200),
-    description: z.string().max(20000),
-    status: z.nativeEnum(TaskStatus),
-  }).parse(data) : undefined;
+  const taskData = data
+    ? z
+        .object({
+          title: z.string().trim().min(1).max(200),
+          description: z.string().max(20000),
+          status: z.nativeEnum(TaskStatus),
+        })
+        .parse(data)
+    : undefined;
 
   if (taskId && !data) {
     await prisma.adventureTask.delete({ where: { id: taskId, partyId } });
@@ -317,8 +305,20 @@ export async function manageTask(
   revalidatePath(`/parties/${partyId}/goals`);
 }
 
-export async function saveMapMarker(mapId: string, markers: Prisma.InputJsonValue) {
-  const safeMarkers = z.array(z.object({ x: z.number().min(0).max(100), y: z.number().min(0).max(100), label: z.string().max(500) })).max(1000).parse(markers);
+export async function saveMapMarker(
+  mapId: string,
+  markers: Prisma.InputJsonValue,
+) {
+  const safeMarkers = z
+    .array(
+      z.object({
+        x: z.number().min(0).max(100),
+        y: z.number().min(0).max(100),
+        label: z.string().max(500),
+      }),
+    )
+    .max(1000)
+    .parse(markers);
   const map = await prisma.gameMap.findUnique({
     where: { id: mapId },
     select: { id: true, partyId: true },
@@ -339,10 +339,23 @@ export async function saveMapMarker(mapId: string, markers: Prisma.InputJsonValu
   return updated;
 }
 
-export async function createMap(partyId: string, name: string, imageUrl: string) {
+export async function createMap(
+  partyId: string,
+  name: string,
+  imageUrl: string,
+) {
   await requirePartyManager(partyId);
   name = z.string().trim().min(1).max(200).parse(name);
-  imageUrl = z.string().max(2048).refine((url) => /^https?:\/\//i.test(url) || (url.startsWith("/") && !url.startsWith("//")), "Use an HTTP(S) URL or a local image path").parse(imageUrl);
+  imageUrl = z
+    .string()
+    .max(2048)
+    .refine(
+      (url) =>
+        /^https?:\/\//i.test(url) ||
+        (url.startsWith("/") && !url.startsWith("//")),
+      "Use an HTTP(S) URL or a local image path",
+    )
+    .parse(imageUrl);
 
   const map = await prisma.gameMap.create({
     data: {
@@ -372,7 +385,7 @@ export async function upsertPartyStashItem(
   partyId: string,
   itemId: string,
   quantity: number,
-  notes?: string
+  notes?: string,
 ) {
   await requirePartyManager(partyId);
 
@@ -386,23 +399,29 @@ export async function upsertPartyStashItem(
       },
     });
   } else {
-    await prisma.partyStashItem.upsert({
-      where: {
-        partyId_itemId: {
+    await serializableTransaction(async (tx) => {
+      const current = await tx.partyStashItem.findUnique({
+        where: { partyId_itemId: { partyId, itemId } },
+      });
+      await tx.partyStashItem.upsert({
+        where: {
+          partyId_itemId: {
+            partyId,
+            itemId,
+          },
+        },
+        update: {
+          quantity,
+          retainedQuantity: Math.min(quantity, current?.retainedQuantity || 0),
+          notes: notes || null,
+        },
+        create: {
           partyId,
           itemId,
+          quantity,
+          notes: notes || null,
         },
-      },
-      update: {
-        quantity,
-        notes: notes || null,
-      },
-      create: {
-        partyId,
-        itemId,
-        quantity,
-        notes: notes || null,
-      },
+      });
     });
   }
 
@@ -426,11 +445,22 @@ export async function removePartyStashItem(partyId: string, itemId: string) {
 
 export async function createMystery(
   partyId: string,
-  data: { title: string; summary: string; hook?: string; status?: MysteryStatus }
+  data: {
+    title: string;
+    summary: string;
+    hook?: string;
+    status?: MysteryStatus;
+  },
 ) {
   await requirePartyManager(partyId);
-  data = z.object({ title: z.string().trim().min(1).max(200), summary: z.string().trim().min(1).max(50000),
-    hook: z.string().max(20000).optional(), status: z.nativeEnum(MysteryStatus).optional() }).parse(data);
+  data = z
+    .object({
+      title: z.string().trim().min(1).max(200),
+      summary: z.string().trim().min(1).max(50000),
+      hook: z.string().max(20000).optional(),
+      status: z.nativeEnum(MysteryStatus).optional(),
+    })
+    .parse(data);
 
   const mystery = await prisma.mystery.create({
     data: {
@@ -456,19 +486,31 @@ export async function updateMystery(
     hook?: string;
     aftermath?: string;
     status?: MysteryStatus;
-  }
+  },
 ) {
   const mystery = await requireMysteryManager(mysteryId);
 
-  data = z.object({ title: z.string().trim().min(1).max(200).optional(), summary: z.string().trim().min(1).max(50000).optional(),
-    hook: z.string().max(20000).optional(), aftermath: z.string().max(50000).optional(), status: z.nativeEnum(MysteryStatus).optional() }).parse(data);
+  data = z
+    .object({
+      title: z.string().trim().min(1).max(200).optional(),
+      summary: z.string().trim().min(1).max(50000).optional(),
+      hook: z.string().max(20000).optional(),
+      aftermath: z.string().max(50000).optional(),
+      status: z.nativeEnum(MysteryStatus).optional(),
+    })
+    .parse(data);
   const updated = await prisma.mystery.update({
     where: { id: mysteryId },
     data: {
       ...data,
-      ...(data.status ? {
-        completedAt: data.status === "RESOLVED" || data.status === "ARCHIVED" ? new Date() : null,
-      } : {}),
+      ...(data.status
+        ? {
+            completedAt:
+              data.status === "RESOLVED" || data.status === "ARCHIVED"
+                ? new Date()
+                : null,
+          }
+        : {}),
     },
   });
 
@@ -482,18 +524,46 @@ export async function archiveMystery(mysteryId: string) {
   return updateMystery(mysteryId, { status: "ARCHIVED" });
 }
 
-export async function setMysteryVisibility(kind: "mystery" | "clue" | "entity" | "location", id: string, visible: boolean) {
+export async function setMysteryVisibility(
+  kind: "mystery" | "clue" | "entity" | "location",
+  id: string,
+  visible: boolean,
+) {
   z.boolean().parse(visible);
   let mysteryId = id;
-  if (kind === "clue") mysteryId = (await prisma.mysteryClue.findUniqueOrThrow({ where: { id } })).mysteryId;
-  else if (kind === "entity") mysteryId = (await prisma.mysteryEntity.findUniqueOrThrow({ where: { id } })).mysteryId;
-  else if (kind === "location") mysteryId = (await prisma.mysteryLocation.findUniqueOrThrow({ where: { id } })).mysteryId;
+  if (kind === "clue")
+    mysteryId = (await prisma.mysteryClue.findUniqueOrThrow({ where: { id } }))
+      .mysteryId;
+  else if (kind === "entity")
+    mysteryId = (
+      await prisma.mysteryEntity.findUniqueOrThrow({ where: { id } })
+    ).mysteryId;
+  else if (kind === "location")
+    mysteryId = (
+      await prisma.mysteryLocation.findUniqueOrThrow({ where: { id } })
+    ).mysteryId;
   else if (kind !== "mystery") throw new Error("Invalid visibility target");
   const mystery = await requireMysteryManager(mysteryId);
-  if (kind === "mystery") await prisma.mystery.update({ where: { id }, data: { isPublished: visible } });
-  else if (kind === "clue") await prisma.mysteryClue.update({ where: { id }, data: { isRevealed: visible } });
-  else if (kind === "entity") await prisma.mysteryEntity.update({ where: { id }, data: { isRevealed: visible } });
-  else await prisma.mysteryLocation.update({ where: { id }, data: { isRevealed: visible } });
+  if (kind === "mystery")
+    await prisma.mystery.update({
+      where: { id },
+      data: { isPublished: visible },
+    });
+  else if (kind === "clue")
+    await prisma.mysteryClue.update({
+      where: { id },
+      data: { isRevealed: visible },
+    });
+  else if (kind === "entity")
+    await prisma.mysteryEntity.update({
+      where: { id },
+      data: { isRevealed: visible },
+    });
+  else
+    await prisma.mysteryLocation.update({
+      where: { id },
+      data: { isRevealed: visible },
+    });
   revalidatePath("/");
   revalidatePath(`/parties/${mystery.partyId}/mysteries`);
 }
@@ -556,7 +626,7 @@ export async function deleteMysteryClue(clueId: string) {
 
 export async function addMysteryEntity(
   mysteryId: string,
-  data: { name: string; type: MysteryEntityType; details?: string }
+  data: { name: string; type: MysteryEntityType; details?: string },
 ) {
   const mystery = await requireMysteryManager(mysteryId);
 
@@ -593,7 +663,7 @@ export async function deleteMysteryEntity(entityId: string) {
 
 export async function addMysteryLocation(
   mysteryId: string,
-  data: { name: string; details?: string }
+  data: { name: string; details?: string },
 ) {
   const mystery = await requireMysteryManager(mysteryId);
 

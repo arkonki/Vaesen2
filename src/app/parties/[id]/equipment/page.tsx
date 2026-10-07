@@ -1,10 +1,13 @@
 import prisma from "@/lib/prisma";
 import { getPartyAccess } from "@/lib/access";
 import StashManager from "./stash-manager";
+import StorageReview from './storage-review';
+import { storageCapacity } from '@/lib/hq-rules';
 
 export default async function EquipmentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const access = await getPartyAccess(id);
+  const castle = await prisma.headquarters.findUnique({ where: { partyId: id }, include: { castleUpgrades: true } });
 
   const [stashItems, items] = await Promise.all([
     prisma.partyStashItem.findMany({
@@ -27,6 +30,7 @@ export default async function EquipmentPage({ params }: { params: Promise<{ id: 
       </div>
 
       <StashManager partyId={id} items={items} stashItems={stashItems} canEdit={access.isGM} />
+      {castle && <StorageReview key={JSON.stringify(stashItems.map((s) => [s.id,s.quantity,s.retainedQuantity]))} hqId={castle.id} rows={stashItems.map((s) => ({ id: s.id, name: s.item.name, type: s.item.type, quantity: s.quantity, retainedQuantity: s.retainedQuantity }))} capacity={storageCapacity(castle.castleUpgrades)} canEdit={access.isGM} />}
     </div>
   );
 }

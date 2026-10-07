@@ -48,6 +48,8 @@ model Character {
   parties            PartyMember[]
   inventory          CharacterInventory[]
   invitations        CharacterInvitation[]
+  castleUses         CastleBenefitUse[]
+  preparedItems      CastlePreparedItem[]
 }
 
 model CharacterAttribute {
@@ -89,17 +91,18 @@ model Archetype {
 }
 
 model Item {
-  id           String               @id @default(uuid())
-  name         String
-  description  String?
-  bonus        Int                  @default(0)
-  availability Int                  @default(0)
-  type         ItemType
-  damage       Int?
-  range        String?
-  skill        String?
-  inventory    CharacterInventory[]
-  partyStash   PartyStashItem[]
+  id            String               @id @default(uuid())
+  name          String
+  description   String?
+  bonus         Int                  @default(0)
+  availability  Int                  @default(0)
+  type          ItemType
+  damage        Int?
+  range         String?
+  skill         String?
+  inventory     CharacterInventory[]
+  partyStash    PartyStashItem[]
+  preparedItems CastlePreparedItem[]
 }
 
 model CharacterInventory {
@@ -181,13 +184,14 @@ model CharacterInvitation {
 }
 
 model PartyStashItem {
-  id       String  @id @default(uuid())
-  partyId  String
-  itemId   String
-  quantity Int     @default(1)
-  notes    String?
-  party    Party   @relation(fields: [partyId], references: [id], onDelete: Cascade)
-  item     Item    @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  id               String  @id @default(uuid())
+  partyId          String
+  itemId           String
+  quantity         Int     @default(1)
+  retainedQuantity Int     @default(0)
+  notes            String?
+  party            Party   @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  item             Item    @relation(fields: [itemId], references: [id], onDelete: Restrict)
 
   @@unique([partyId, itemId])
   @@index([partyId])
@@ -195,22 +199,25 @@ model PartyStashItem {
 }
 
 model Mystery {
-  id          String            @id @default(uuid())
-  partyId     String
-  title       String
-  summary     String
-  hook        String?
-  aftermath   String?
-  status      MysteryStatus     @default(PREP)
-  isPublished Boolean           @default(false)
-  startedAt   DateTime          @default(now())
-  completedAt DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  party       Party             @relation(fields: [partyId], references: [id], onDelete: Cascade)
-  clues       MysteryClue[]
-  entities    MysteryEntity[]
-  locations   MysteryLocation[]
+  id                String                   @id @default(uuid())
+  partyId           String
+  title             String
+  summary           String
+  hook              String?
+  aftermath         String?
+  status            MysteryStatus            @default(PREP)
+  isPublished       Boolean                  @default(false)
+  startedAt         DateTime                 @default(now())
+  completedAt       DateTime?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  party             Party                    @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  clues             MysteryClue[]
+  entities          MysteryEntity[]
+  locations         MysteryLocation[]
+  developmentReview CastleDevelopmentReview?
+  castleUses        CastleBenefitUse[]
+  castleSessions    CastleSession[]
 
   @@index([partyId, status])
 }
@@ -274,6 +281,163 @@ model Headquarters {
   threats           Json                      @default("[]")
   party             Party                     @relation(fields: [partyId], references: [id], onDelete: Cascade)
   ledgerEntries     HeadquartersLedgerEntry[]
+  castleUpgrades    CastleUpgrade[]
+  discoveries       CastleDiscovery[]
+  occasions         CastleOccasion[]
+  castleThreats     CastleThreat[]
+  facts             CastleFact[]
+  reviews           CastleDevelopmentReview[]
+  sessions          CastleSession[]
+}
+
+model CastleUpgrade {
+  id                String             @id @default(uuid())
+  headquartersId    String
+  key               String
+  ordinal           Int                @default(1)
+  name              String
+  category          String
+  description       String             @default("")
+  status            String             @default("ACTIVE")
+  legacy            Boolean            @default(false)
+  personName        String?
+  personDescription String?
+  motivation        String?
+  darkSecret        String?
+  relationships     String?
+  stats             Json               @default("{}")
+  acquiredAt        DateTime           @default(now())
+  headquarters      Headquarters       @relation(fields: [headquartersId], references: [id], onDelete: Cascade)
+  uses              CastleBenefitUse[]
+  purchase          CastlePurchase?
+
+  @@unique([headquartersId, key, ordinal])
+}
+
+model CastleDiscovery {
+  id             String       @id @default(uuid())
+  headquartersId String
+  key            String
+  hint           String
+  identified     Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  headquarters   Headquarters @relation(fields: [headquartersId], references: [id], onDelete: Cascade)
+
+  @@unique([headquartersId, key])
+}
+
+model CastleOccasion {
+  id             String           @id @default(uuid())
+  headquartersId String
+  closedAt       DateTime?
+  createdAt      DateTime         @default(now())
+  headquarters   Headquarters     @relation(fields: [headquartersId], references: [id], onDelete: Cascade)
+  purchases      CastlePurchase[]
+
+  @@index([headquartersId, closedAt])
+}
+
+model CastlePurchase {
+  id             String         @id @default(uuid())
+  occasionId     String
+  upgradeId      String         @unique
+  requestId      String         @unique
+  paidCost       Int
+  dice           Int
+  rolls          Json
+  successes      Int
+  overrideReason String?
+  actorId        String
+  createdAt      DateTime       @default(now())
+  occasion       CastleOccasion @relation(fields: [occasionId], references: [id], onDelete: Cascade)
+  upgrade        CastleUpgrade  @relation(fields: [upgradeId], references: [id], onDelete: Cascade)
+  threat         CastleThreat?
+}
+
+model CastleThreat {
+  id             String          @id @default(uuid())
+  headquartersId String
+  purchaseId     String?         @unique
+  title          String
+  description    String          @default("")
+  status         String          @default("PENDING")
+  countdown      Json            @default("[]")
+  step           Int             @default(0)
+  createdAt      DateTime        @default(now())
+  headquarters   Headquarters    @relation(fields: [headquartersId], references: [id], onDelete: Cascade)
+  purchase       CastlePurchase? @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+}
+
+model CastleFact {
+  id             String       @id @default(uuid())
+  headquartersId String
+  key            String
+  evidence       String
+  actorId        String
+  headquarters   Headquarters @relation(fields: [headquartersId], references: [id], onDelete: Cascade)
+
+  @@unique([headquartersId, key])
+}
+
+model CastleDevelopmentReview {
+  id             String       @id @default(uuid())
+  headquartersId String
+  mysteryId      String       @unique
+  answers        Json
+  points         Int
+  actorId        String
+  createdAt      DateTime     @default(now())
+  headquarters   Headquarters @relation(fields: [headquartersId], references: [id], onDelete: Cascade)
+  mystery        Mystery      @relation(fields: [mysteryId], references: [id], onDelete: Cascade)
+}
+
+model CastleSession {
+  id             String             @id @default(uuid())
+  headquartersId String
+  mysteryId      String
+  name           String
+  createdAt      DateTime           @default(now())
+  headquarters   Headquarters       @relation(fields: [headquartersId], references: [id], onDelete: Cascade)
+  mystery        Mystery            @relation(fields: [mysteryId], references: [id], onDelete: Cascade)
+  uses           CastleBenefitUse[]
+
+  @@unique([headquartersId, mysteryId, name])
+}
+
+model CastleBenefitUse {
+  id            String               @id @default(uuid())
+  upgradeId     String
+  mysteryId     String
+  characterId   String?
+  sessionId     String?
+  channel       String
+  useKey        String
+  requestId     String               @unique
+  summary       String
+  effects       Json                 @default("{}")
+  expired       Boolean              @default(false)
+  createdAt     DateTime             @default(now())
+  upgrade       CastleUpgrade        @relation(fields: [upgradeId], references: [id], onDelete: Cascade)
+  mystery       Mystery              @relation(fields: [mysteryId], references: [id], onDelete: Cascade)
+  character     Character?           @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  session       CastleSession?       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  preparedItems CastlePreparedItem[]
+
+  @@unique([upgradeId, mysteryId, channel, useKey])
+  @@index([characterId, mysteryId])
+}
+
+model CastlePreparedItem {
+  id          String           @id @default(uuid())
+  useId       String
+  characterId String
+  itemId      String
+  quantity    Int              @default(1)
+  use         CastleBenefitUse @relation(fields: [useId], references: [id], onDelete: Cascade)
+  character   Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  item        Item             @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([useId, characterId, itemId])
 }
 
 model HeadquartersLedgerEntry {

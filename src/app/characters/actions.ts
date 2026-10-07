@@ -169,7 +169,7 @@ export async function updateCharacterConditions(
 export async function updateCharacterExperience(characterId: string, experiencePoints: number) {
   await requireCharacterAccess(characterId);
 
-  const normalizedXp = z.number().int().min(0).max(10).parse(experiencePoints);
+  const normalizedXp = z.number().int().min(0).max(9999).parse(experiencePoints);
 
   const character = await prisma.character.update({
     where: { id: characterId },

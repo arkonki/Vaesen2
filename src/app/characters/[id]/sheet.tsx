@@ -423,7 +423,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                   <button
                     key={index}
                     type="button"
-                    disabled={!canEdit || xpSaving}
+                    disabled={!canEdit || xpSaving || experiencePoints > MAX_XP_TRACKER}
                     onClick={() => handleXpToggle(index)}
                     className={cn("ledger-xp-mark", index < experiencePoints && "is-filled")}
                     aria-label={`Experience slot ${index + 1}`}
@@ -431,7 +431,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                 ))}
               </div>
               <p className="ledger-helper-copy">
-                {experiencePoints}/{MAX_XP_TRACKER}
+                {experiencePoints} unspent XP{experiencePoints > MAX_XP_TRACKER ? ' (above the checkbox tracker; no XP is discarded)' : `/${MAX_XP_TRACKER}`}
                 {xpSaving ? " saving..." : ""}
               </p>
             </div>

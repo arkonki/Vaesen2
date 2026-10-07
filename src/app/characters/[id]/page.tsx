@@ -3,14 +3,23 @@ import { ItemType, TalentType } from "@prisma/client";
 import { getAppSession } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import CharacterSheet from "./sheet";
+import CharacterCastleBenefits, {
+  type CharacterCastleBenefit,
+} from "@/components/character-castle-benefits";
 
 const PHYSICAL_KEYS = ["exhausted", "battered", "wounded", "broken"] as const;
 const MENTAL_KEYS = ["angry", "frightened", "hopeless", "broken"] as const;
 
 type ConditionState = Record<string, boolean>;
 
-function normalizeConditions(input: unknown, keys: readonly string[]): ConditionState {
-  const source = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : {};
+function normalizeConditions(
+  input: unknown,
+  keys: readonly string[],
+): ConditionState {
+  const source =
+    typeof input === "object" && input !== null
+      ? (input as Record<string, unknown>)
+      : {};
   const normalized: ConditionState = {};
 
   for (const key of keys) {
@@ -106,6 +115,56 @@ export default async function CharacterSheetPage({
   }
 
   const canEdit = isOwner || isAdmin || isGmWithAccess;
+  const castleScope =
+    isOwner || isAdmin ? {} : { party: { gmId: session.user.id } };
+  const castleUses = await prisma.castleBenefitUse.findMany({
+    where: {
+      expired: false,
+      OR: [{ characterId: id }, { characterId: null }],
+      upgrade: {
+        headquarters: {
+          ...castleScope,
+          party: {
+            ...("party" in castleScope ? castleScope.party : {}),
+            members: { some: { characterId: id } },
+          },
+        },
+      },
+      mystery: { status: { not: "ARCHIVED" } },
+    },
+    include: {
+      upgrade: { select: { headquarters: { select: { partyId: true } } } },
+      mystery: {
+        select: { id: true, title: true, status: true, isPublished: true },
+      },
+    },
+  });
+  const castleBenefits: CharacterCastleBenefit[] = castleUses.map((use) => ({
+    id: use.id,
+    partyId: use.upgrade.headquarters.partyId,
+    mysteryId: use.mystery.id,
+    mystery:
+      use.mystery.isPublished || isAdmin || isGmWithAccess
+        ? use.mystery.title
+        : "Upcoming mystery",
+    summary: use.summary,
+    active: use.mystery.status !== "RESOLVED",
+    ...(use.effects as Omit<
+      CharacterCastleBenefit,
+      "id" | "partyId" | "mysteryId" | "mystery" | "summary" | "active"
+    >),
+  }));
+  const prepared = await prisma.castlePreparedItem.findMany({
+    where: {
+      characterId: id,
+      use: {
+        expired: false,
+        mystery: { status: { in: ["PREP", "ACTIVE"] } },
+        upgrade: { headquarters: castleScope },
+      },
+    },
+    include: { item: true },
+  });
 
   const talentIds = parseStringArray(character.talents);
   const talents =
@@ -116,7 +175,13 @@ export default async function CharacterSheetPage({
         })
       : [];
 
-  const inventory = character.inventory.map((entry) => ({
+  const inventory = [
+    ...character.inventory,
+    ...prepared.map((entry) => ({
+      ...entry,
+      notes: "Temporary castle preparation equipment",
+    })),
+  ].map((entry) => ({
     id: entry.id,
     quantity: entry.quantity,
     notes: entry.notes,
@@ -136,6 +201,17 @@ export default async function CharacterSheetPage({
   return (
     <div className="min-h-screen px-3 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1500px]">
+        <CharacterCastleBenefits
+          benefits={castleBenefits}
+          physicalBase={
+            (character.attribute?.physique ?? 2) +
+            (character.attribute?.precision ?? 2)
+          }
+          mentalBase={
+            (character.attribute?.logic ?? 2) +
+            (character.attribute?.empathy ?? 2)
+          }
+        />
         <CharacterSheet
           characterId={character.id}
           canEdit={canEdit}
@@ -151,8 +227,14 @@ export default async function CharacterSheetPage({
           notes={character.notes ?? ""}
           relationships={character.relationships ?? ""}
           experiencePoints={character.experiencePoints}
-          physicalConditions={normalizeConditions(character.physicalConditions, PHYSICAL_KEYS)}
-          mentalConditions={normalizeConditions(character.mentalConditions, MENTAL_KEYS)}
+          physicalConditions={normalizeConditions(
+            character.physicalConditions,
+            PHYSICAL_KEYS,
+          )}
+          mentalConditions={normalizeConditions(
+            character.mentalConditions,
+            MENTAL_KEYS,
+          )}
           attributes={{
             physique: character.attribute?.physique ?? 2,
             precision: character.attribute?.precision ?? 2,
@@ -180,7 +262,9 @@ export default async function CharacterSheetPage({
             type: talent.type as TalentType,
           }))}
           inventory={inventory}
-          insightsAfflictions={parseInsightsAfflictions(character.insightsDefects)}
+          insightsAfflictions={parseInsightsAfflictions(
+            character.insightsDefects,
+          )}
         />
       </div>
     </div>

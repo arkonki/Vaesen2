@@ -51,7 +51,12 @@ try {
   const party = await prisma.party.create({ data: {
     name: prefix, gmId: admin.id, notes: '<p onclick="evil()">Safe shared notes<script>evil()</script></p>',
     members: { create: { characterId: character.id } },
-    headquarters: { create: { name: prefix, history: "Test", threats: [{ description: `${prefix}-private-threat` }] } },
+    headquarters: { create: {
+      name: prefix, history: "Test", threats: [{ description: `${prefix}-private-threat` }],
+      castleThreats: { create: { title: `${prefix}-private-threat`, description: 'Hidden castle countdown', countdown: ['Private stage'] } },
+      castleUpgrades: { create: { key: 'recruit', name: 'Recruit', category: 'personnel', personName: 'Shared recruit', personDescription: 'A new Society member', motivation: `${prefix}-recruit-motivation`, darkSecret: `${prefix}-recruit-secret`, relationships: 'Trusted by the party' } },
+      discoveries: { create: { key: 'occult-archive', hint: `${prefix}-shared-discovery` } },
+    } },
     mysteries: { create: [
       { title: `${prefix}-private-mystery`, summary: "Private", status: "PREP" },
       { title: `${prefix}-published-mystery`, summary: "Shared", status: "ACTIVE", isPublished: true,
@@ -76,6 +81,10 @@ try {
   assert.ok(!mysteries.includes(`${prefix}-private-clue`));
   const hq = await (await playerRequest(`/parties/${party.id}/hq`)).text();
   assert.ok(!hq.includes(`${prefix}-private-threat`));
+  assert.ok(!hq.includes(`${prefix}-recruit-secret`));
+  assert.ok(!hq.includes(`${prefix}-recruit-motivation`));
+  assert.ok(!hq.includes('Occult Archive'));
+  assert.ok(hq.includes(`${prefix}-shared-discovery`));
   const notes = await (await playerRequest(`/parties/${party.id}/notes`)).text();
   assert.ok(!notes.includes("onclick=\\\"evil()"));
   assert.ok(!notes.includes("Save Notes"));
@@ -91,6 +100,10 @@ try {
   const userPage = await (await adminRequest("/admin/users")).text();
   assert.ok(!userPage.includes("passwordHash"));
   assert.ok(!userPage.includes(hash));
+  const adminHQ = await (await adminRequest(`/parties/${party.id}/hq`)).text();
+  assert.ok(adminHQ.includes(`${prefix}-private-threat`));
+  assert.ok(adminHQ.includes(`${prefix}-recruit-secret`));
+  assert.ok(adminHQ.includes('Occult Archive'));
   const gmMysteries = await (await adminRequest(`/parties/${party.id}/mysteries`)).text();
   assert.ok(gmMysteries.includes(`${prefix}-private-clue`));
   assert.ok(gmMysteries.includes(`${prefix}-private-mystery`));

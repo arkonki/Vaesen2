@@ -27,7 +27,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("database authorization and camp
     const talent = await prisma.talent.create({ data: { name: prefix, type: "GENERAL", description: "Test talent" } });
     const item = await prisma.item.create({ data: { name: prefix, type: "GEAR" } });
     const character = await prisma.character.create({ data: {
-      userId: player.id, archetypeId: archetype.id, name: prefix, ageGroup: "YOUNG", motivation: "Truth", trauma: "Sight", darkSecret: "Debt",
+      userId: player.id, archetypeId: archetype.id, name: prefix, ageGroup: "YOUNG", motivation: "Truth", trauma: "Sight", darkSecret: "Debt", resources: 5,
     } });
     const party1 = await prisma.party.create({ data: { name: prefix, gmId: gm1.id } });
     const party2 = await prisma.party.create({ data: { name: `${prefix}-other`, gmId: gm2.id } });
@@ -79,7 +79,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("database authorization and camp
   });
   it("prevents concurrent HQ overspending and records the successful purchase", async () => {
     const results = await Promise.allSettled([
-      buyUpgrade(ids.hq, "facilities", "Infirmary"), buyUpgrade(ids.hq, "facilities", "Botanical Garden"),
+      buyUpgrade(ids.hq, "facilities", "Local Tavern"), buyUpgrade(ids.hq, "facilities", "Workshop"),
     ]);
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     const hq = await prisma.headquarters.findUniqueOrThrow({ where: { id: ids.hq }, include: { ledgerEntries: true } });
@@ -90,10 +90,10 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("database authorization and camp
   it("prevents duplicate concurrent purchases", async () => {
     await awardDevelopmentPoints(ids.hq, 20, "Completed mystery");
     const results = await Promise.allSettled([
-      buyUpgrade(ids.hq, "facilities", "Library"), buyUpgrade(ids.hq, "facilities", "Library"),
+      buyUpgrade(ids.hq, "facilities", "The Annals of the Society"), buyUpgrade(ids.hq, "facilities", "The Annals of the Society"),
     ]);
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
-    const ledger = await prisma.headquartersLedgerEntry.findMany({ where: { headquartersId: ids.hq, description: "Purchased Library" } });
+    const ledger = await prisma.headquartersLedgerEntry.findMany({ where: { headquartersId: ids.hq, description: "Purchased The Annals of the Society" } });
     expect(ledger).toHaveLength(1);
   });
   it("rejects invalid awards and unknown upgrades", async () => {
