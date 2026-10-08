@@ -38,7 +38,15 @@ describe("private character drafts", () => {
     expect(firstIncompleteStep(initialState)).toBe(1);expect(firstIncompleteStep(complete)).toBe(8);
     expect(firstIncompleteStep({...complete,attributes:{...complete.attributes,logic:3}})).toBe(4);
     expect(firstIncompleteStep({...complete,skills:{...complete.skills,learning:2}})).toBe(5);
-    expect(firstIncompleteStep({...complete,darkSecret:""})).toBe(5);
+    expect(firstIncompleteStep({...complete,darkSecret:""})).toBe(6);
     expect(restoreCharacterDraft(serialized({...complete,skills:{...complete.skills,learning:2}}),[archetype],[talent],[item])?.step).toBe(5);
+  });
+  it("migrates older seven-step drafts without losing their data", () => {
+    const raw = JSON.stringify({version:1,step:7,data:complete});
+    expect(restoreCharacterDraft(raw,[archetype],[talent],[item])).toEqual({data:complete,step:8});
+  });
+  it("asks for archetype, age, and then name", () => {
+    expect(firstIncompleteStep({...initialState,archetypeId:archetype.id})).toBe(2);
+    expect(firstIncompleteStep({...complete,name:""})).toBe(3);
   });
 });
