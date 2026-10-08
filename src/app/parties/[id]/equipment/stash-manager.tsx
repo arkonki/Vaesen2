@@ -93,13 +93,13 @@ export default function StashManager({
   return (
     <div className="space-y-8">
       {canEdit ? (
-        <form onSubmit={handleAdd} className="grid gap-4 rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5 lg:grid-cols-[1.2fr_0.3fr_1fr_auto]">
+        <form onSubmit={handleAdd} className="grid gap-4 rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5 lg:grid-cols-[1.2fr_0.3fr_1fr_auto]">
           <div>
             <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]">Item</label>
             <select
               value={selectedItemId}
               onChange={(event) => setSelectedItemId(event.target.value)}
-              className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+              className="w-full rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
             >
               {items.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -116,7 +116,7 @@ export default function StashManager({
               min={1}
               value={quantity}
               onChange={(event) => setQuantity(event.target.value)}
-              className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+              className="w-full rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
             />
           </div>
 
@@ -126,7 +126,7 @@ export default function StashManager({
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               placeholder="Stashed after the latest mystery"
-              className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+              className="w-full rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
             />
           </div>
 
@@ -144,7 +144,7 @@ export default function StashManager({
 
       <div className="grid gap-6 lg:grid-cols-2">
         {grouped.map((group) => (
-          <section key={group.type} className="rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-5">
+          <section key={group.type} className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-xl font-bold text-[var(--ledger-ink)]">{group.label}</h2>
               <span className="text-xs uppercase tracking-[0.2em] text-[var(--ledger-ink-soft)]">{group.entries.length} entries</span>
@@ -163,7 +163,7 @@ export default function StashManager({
                   />
                 ))
               ) : (
-                <div className="rounded-xl border border-dashed border-[var(--ledger-line)]/55 p-4 text-sm text-[var(--ledger-ink-soft)]">
+                <div className="rounded-sm border border-dashed border-[var(--ledger-line)]/55 p-4 text-sm text-[var(--ledger-ink-soft)]">
                   No {group.label.toLowerCase()} stored here.
                 </div>
               )}
@@ -192,7 +192,7 @@ function StashEntryCard({
   const [notes, setNotes] = useState(entry.notes ?? "");
 
   return (
-    <article className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-4">
+    <article className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-lg font-semibold text-[var(--ledger-ink)]">{entry.item.name}</h3>
@@ -216,13 +216,13 @@ function StashEntryCard({
             min={1}
             value={quantity}
             onChange={(event) => setQuantity(event.target.value)}
-            className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
+            className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
           />
           <input
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             placeholder="No notes"
-            className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
+            className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
           />
           <button
             type="button"

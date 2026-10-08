@@ -14,30 +14,32 @@ import {
 import { cn } from "@/lib/utils";
 
 const navigations = [
-  { name: "Management", href: "/management", icon: Users },
+  { name: "Overview", href: "", icon: ScrollText },
   { name: "Mysteries", href: "/mysteries", icon: Search },
   { name: "Goals", href: "/goals", icon: ListTodo },
   { name: "Equipment", href: "/equipment", icon: Package },
   { name: "Headquarters", href: "/hq", icon: Castle },
   { name: "Notes", href: "/notes", icon: StickyNote },
   { name: "Atlas", href: "/atlas", icon: ScrollText },
+  { name: "Members", href: "/management", icon: Users },
 ];
 
 export default function SidebarNav({ partyId }: { partyId: string }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-wrap lg:block gap-2 lg:space-y-1">
+    <nav className="ledger-subnav" aria-label="Party navigation">
       {navigations.map((item) => {
         const fullHref = `/parties/${partyId}${item.href}`;
-        const isActive = pathname.startsWith(fullHref);
+        const isActive = item.href ? pathname.startsWith(fullHref) : pathname === fullHref;
 
         return (
           <Link
             key={item.name}
             href={fullHref}
+            aria-current={isActive ? "page" : undefined}
             className={cn(
-              "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200",
+              "text-sm transition-colors",
               isActive
                 ? "bg-[var(--ledger-paper-deep)] text-[var(--ledger-ink)] shadow-lg shadow-black/20 ring-1 ring-[var(--ledger-focus)]"
                 : "text-[var(--ledger-ink-soft)] hover:text-[var(--ledger-ink)] hover:bg-[var(--ledger-paper-deep)]"

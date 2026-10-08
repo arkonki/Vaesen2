@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PageMasthead from "@/components/page-masthead";
 import prisma from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/access";
 import CreatePartyForm from "./create-party-form";
@@ -54,18 +55,12 @@ export default async function PartiesPage() {
   return (
     <main className="px-4 py-10 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-8">
-        <section className="rounded-[2rem] border border-[var(--ledger-line)]/55 bg-[linear-gradient(135deg,rgba(130,95,50,0.18),rgba(11,11,15,0.9))] p-8 shadow-2xl">
-          <p className="text-xs uppercase tracking-[0.35em] text-[var(--ledger-accent)]">Parties</p>
-          <h1 className="mt-3 text-4xl font-black tracking-tight text-[var(--ledger-ink)]">Campaign Command</h1>
-          <p className="mt-4 max-w-3xl text-base leading-relaxed text-[var(--ledger-ink)]">
-            Manage Society parties, review active mysteries, and keep headquarters assets organized.
-          </p>
-        </section>
+        <PageMasthead title="Your Campaigns" eyebrow="The Society's Parties" description="Choose a party to return to its mystery log, hunters, shared equipment, and headquarters." />
 
         {canManage ? (
-          <CreatePartyForm />
+          <details className="ledger-panel p-5"><summary className="cursor-pointer font-bold text-[var(--ledger-accent)]">Create a New Party</summary><div className="mt-4"><CreatePartyForm /></div></details>
         ) : (
-          <section className="rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-5 text-sm text-[var(--ledger-ink-soft)]">
+          <section className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-5 text-sm text-[var(--ledger-ink-soft)]">
             Players can review their assigned parties here. Party creation is limited to GMs and admins.
           </section>
         )}
@@ -134,7 +129,7 @@ function PartySection({
             <Link
               key={party.id}
               href={`/parties/${party.id}`}
-              className="rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-5 transition-colors hover:border-[var(--ledger-accent)]/65"
+              className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-5 transition-colors hover:border-[var(--ledger-accent)]/65"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -156,7 +151,7 @@ function PartySection({
           ))}
         </div>
       ) : emptyText ? (
-        <div className="rounded-2xl border border-dashed border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-6 text-sm text-[var(--ledger-ink-soft)]">
+        <div className="rounded-sm border border-dashed border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-6 text-sm text-[var(--ledger-ink-soft)]">
           {emptyText}
         </div>
       ) : null}

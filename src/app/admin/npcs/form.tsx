@@ -11,11 +11,13 @@ import { Plus, Trash2 } from "lucide-react";
 export default function NPCForm({ npc }: { npc?: NPC | null }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [skills, setSkills] = useState<Record<string, number>>(numericRecord(npc?.skills));
   const [weapons, setWeapons] = useState<Weapon[]>(weaponList(npc?.weapons));
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setSaveError("");
     setLoading(true);
     const formData = new FormData(e.currentTarget);
     const data = {
@@ -39,8 +41,7 @@ export default function NPCForm({ npc }: { npc?: NPC | null }) {
       }
       router.push("/admin/npcs");
     } catch (error) {
-      console.error(error);
-      alert("Error saving NPC");
+      setSaveError(error instanceof Error ? error.message : "This entry could not be saved. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -83,17 +84,18 @@ export default function NPCForm({ npc }: { npc?: NPC | null }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl">
+    <form onSubmit={handleSubmit} aria-busy={loading} className="space-y-8 max-w-2xl">
+      {saveError && <p role="alert" className="ledger-status">{saveError}</p>}
       {/* Basic Info */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-[var(--ledger-ink)] border-b border-[var(--ledger-line)]/55 pb-2">Basic Info</h3>
         <div>
-          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Name</label>
-          <input required type="text" name="name" defaultValue={npc?.name} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
+          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-npcs-form-tsx-0">Name</label>
+          <input id="field-npcs-form-tsx-0" required type="text" name="name" defaultValue={npc?.name} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Description</label>
-          <textarea required rows={3} name="description" defaultValue={npc?.description} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
+          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-npcs-form-tsx-1">Description</label>
+          <textarea id="field-npcs-form-tsx-1" required rows={3} name="description" defaultValue={npc?.description} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
         </div>
       </div>
 
@@ -101,14 +103,14 @@ export default function NPCForm({ npc }: { npc?: NPC | null }) {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-[var(--ledger-ink)] border-b border-[var(--ledger-line)]/55 pb-2">Attributes & Toughness</h3>
         <div className="grid grid-cols-4 gap-4">
-          <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1">Physique</label><input required type="number" name="physique" defaultValue={npc?.physique ?? 2} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-2 py-1 text-[var(--ledger-ink)]" /></div>
-          <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1">Precision</label><input required type="number" name="precision" defaultValue={npc?.precision ?? 2} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-2 py-1 text-[var(--ledger-ink)]" /></div>
-          <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1">Logic</label><input required type="number" name="logic" defaultValue={npc?.logic ?? 2} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-2 py-1 text-[var(--ledger-ink)]" /></div>
-          <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1">Empathy</label><input required type="number" name="empathy" defaultValue={npc?.empathy ?? 2} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-2 py-1 text-[var(--ledger-ink)]" /></div>
+          <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1" htmlFor="field-npcs-form-tsx-2">Physique</label><input id="field-npcs-form-tsx-2" required type="number" name="physique" defaultValue={npc?.physique ?? 2} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-2 py-1 text-[var(--ledger-ink)]" /></div>
+          <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1" htmlFor="field-npcs-form-tsx-3">Precision</label><input id="field-npcs-form-tsx-3" required type="number" name="precision" defaultValue={npc?.precision ?? 2} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-2 py-1 text-[var(--ledger-ink)]" /></div>
+          <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1" htmlFor="field-npcs-form-tsx-4">Logic</label><input id="field-npcs-form-tsx-4" required type="number" name="logic" defaultValue={npc?.logic ?? 2} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-2 py-1 text-[var(--ledger-ink)]" /></div>
+          <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1" htmlFor="field-npcs-form-tsx-5">Empathy</label><input id="field-npcs-form-tsx-5" required type="number" name="empathy" defaultValue={npc?.empathy ?? 2} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-2 py-1 text-[var(--ledger-ink)]" /></div>
         </div>
         <div className="grid grid-cols-2 gap-4 mt-2">
-          <div><label className="block text-sm text-[var(--ledger-ink)] mb-1">Physical Toughness</label><input required type="number" name="physicalToughness" defaultValue={npc?.physicalToughness ?? 0} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-3 py-2 text-[var(--ledger-ink)]" /></div>
-          <div><label className="block text-sm text-[var(--ledger-ink)] mb-1">Mental Toughness</label><input required type="number" name="mentalToughness" defaultValue={npc?.mentalToughness ?? 0} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-3 py-2 text-[var(--ledger-ink)]" /></div>
+          <div><label className="block text-sm text-[var(--ledger-ink)] mb-1" htmlFor="field-npcs-form-tsx-6">Physical Toughness</label><input id="field-npcs-form-tsx-6" required type="number" name="physicalToughness" defaultValue={npc?.physicalToughness ?? 0} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-3 py-2 text-[var(--ledger-ink)]" /></div>
+          <div><label className="block text-sm text-[var(--ledger-ink)] mb-1" htmlFor="field-npcs-form-tsx-7">Mental Toughness</label><input id="field-npcs-form-tsx-7" required type="number" name="mentalToughness" defaultValue={npc?.mentalToughness ?? 0} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-3 py-2 text-[var(--ledger-ink)]" /></div>
         </div>
       </div>
 

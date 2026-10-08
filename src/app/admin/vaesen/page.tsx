@@ -1,7 +1,9 @@
 import { requireAdminSession } from "@/lib/access";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
-import { Plus, Edit2, Trash2 } from "lucide-react";
+import { Plus, Edit2 } from "lucide-react";
+import ConfirmDelete from "@/components/confirm-delete";
+import AdminSearch from "@/components/admin-search";
 import VaesenForm from "./form";
 import { deleteVaesen } from "@/app/admin/actions";
 import { revalidatePath } from "next/cache";
@@ -9,15 +11,15 @@ import { revalidatePath } from "next/cache";
 export default async function VaesenPage({
   searchParams,
 }: {
-  searchParams: Promise<{ action?: string; id?: string }>;
+  searchParams: Promise<{ action?: string; id?: string; q?: string }>;
 }) {
   await requireAdminSession();
   const query = await searchParams;
-  const vaesenList = await prisma.vaesen.findMany();
+  const vaesenList = await prisma.vaesen.findMany({ where: query.q ? { name: { contains: query.q.trim(), mode: "insensitive" } } : {}, orderBy: { name: "asc" } });
 
   const isCreating = query.action === "create";
   const editingId = query.id;
-  const editingVaesen = editingId ? vaesenList.find(v => v.id === editingId) : null;
+  const editingVaesen = editingId ? await prisma.vaesen.findUnique({ where: { id: editingId } }) : null;
 
   async function handleDelete(data: FormData) {
     "use server";
@@ -38,6 +40,8 @@ export default async function VaesenPage({
         )}
       </div>
 
+      {!isCreating && !editingId && <AdminSearch query={query.q} count={vaesenList.length} />}
+
       {(isCreating || editingVaesen) ? (
         <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-lg p-6">
           <h2 className="text-xl font-bold text-[var(--ledger-ink)] mb-4">
@@ -46,7 +50,7 @@ export default async function VaesenPage({
           <VaesenForm vaesen={editingVaesen} />
         </div>
       ) : (
-        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-lg overflow-hidden">
+        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-sm ledger-admin-table">
           <table className="w-full text-left text-sm text-[var(--ledger-ink)]">
             <thead className="bg-[var(--ledger-paper)] text-[var(--ledger-ink-soft)]">
               <tr>
@@ -65,15 +69,10 @@ export default async function VaesenPage({
                   <td className="px-6 py-4">{v.fear}</td>
                   <td className="px-6 py-4 truncate max-w-[200px]">{v.secret}</td>
                   <td className="px-6 py-4 text-right flex justify-end gap-3">
-                    <Link href={`?id=${v.id}`} className="text-[var(--ledger-accent)] hover:text-[var(--ledger-accent)]">
-                      <Edit2 className="w-4 h-4" />
+                    <Link href={`?id=${v.id}`} aria-label={`Edit ${v.name}`} className="ledger-button text-[var(--ledger-accent)]">
+                      <Edit2 className="w-4 h-4" aria-hidden="true" /><span>Edit</span>
                     </Link>
-                    <form action={handleDelete}>
-                      <input type="hidden" name="id" value={v.id} />
-                      <button type="submit" className="text-[var(--ledger-danger)] hover:text-[var(--ledger-danger)]">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </form>
+                    <ConfirmDelete id={v.id} name={v.name} action={handleDelete} />
                   </td>
                 </tr>
               ))}

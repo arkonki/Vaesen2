@@ -33,7 +33,7 @@ export default function CreatePartyForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-5">
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-5">
       <div>
         <h2 className="text-xl font-bold text-[var(--ledger-ink)]">Create a Party</h2>
         <p className="mt-1 text-sm text-[var(--ledger-ink-soft)]">Set up a new Society cell and initialize its headquarters.</p>
@@ -45,13 +45,13 @@ export default function CreatePartyForm() {
           required
           value={name}
           onChange={(event) => setName(event.target.value)}
-          className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none transition-colors focus:border-[var(--ledger-accent)]/65"
+          className="w-full rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none transition-colors focus:border-[var(--ledger-accent)]/65"
           placeholder="Upsala Chapter"
         />
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-[var(--ledger-danger)]">
+        <div className="rounded-sm border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-[var(--ledger-danger)]">
           {error}
         </div>
       ) : null}

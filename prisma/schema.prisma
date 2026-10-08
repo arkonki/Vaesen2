@@ -81,28 +81,70 @@ model CharacterSkill {
 }
 
 model Archetype {
-  id                   String      @id @default(uuid())
+  id                   String                    @id @default(uuid())
   name                 String
   mainAttribute        String
   mainSkill            String
-  startingResourcesMin Int         @default(0)
-  startingResourcesMax Int         @default(0)
+  startingResourcesMin Int                       @default(0)
+  startingResourcesMax Int                       @default(0)
+  flavorText           String                    @default("")
+  firstNameOptions     String[]                  @default([])
+  lastNameOptions      String[]                  @default([])
+  motivationOptions    String[]                  @default([])
+  traumaOptions        String[]                  @default([])
+  darkSecretOptions    String[]                  @default([])
+  relationshipOptions  String[]                  @default([])
+  startingTalents      ArchetypeStartingTalent[]
+  equipmentGroups      ArchetypeEquipmentGroup[]
   characters           Character[]
 }
 
+model ArchetypeStartingTalent {
+  archetypeId String
+  talentId    String
+  archetype   Archetype @relation(fields: [archetypeId], references: [id], onDelete: Cascade)
+  talent      Talent    @relation(fields: [talentId], references: [id], onDelete: Restrict)
+
+  @@id([archetypeId, talentId])
+  @@index([talentId])
+}
+
+model ArchetypeEquipmentGroup {
+  id          String                     @id @default(uuid())
+  archetypeId String
+  label       String
+  quantity    Int                        @default(1)
+  position    Int                        @default(0)
+  archetype   Archetype                  @relation(fields: [archetypeId], references: [id], onDelete: Cascade)
+  options     ArchetypeEquipmentOption[]
+
+  @@index([archetypeId])
+}
+
+model ArchetypeEquipmentOption {
+  groupId String
+  itemId  String
+  group   ArchetypeEquipmentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  item    Item                    @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@id([groupId, itemId])
+  @@index([itemId])
+}
+
 model Item {
-  id            String               @id @default(uuid())
-  name          String
-  description   String?
-  bonus         Int                  @default(0)
-  availability  Int                  @default(0)
-  type          ItemType
-  damage        Int?
-  range         String?
-  skill         String?
-  inventory     CharacterInventory[]
-  partyStash    PartyStashItem[]
-  preparedItems CastlePreparedItem[]
+  id               String                     @id @default(uuid())
+  name             String
+  description      String?
+  bonus            Int                        @default(0)
+  availability     Int                        @default(0)
+  type             ItemType
+  damage           Int?
+  range            String?
+  skill            String?
+  inventory        CharacterInventory[]
+  partyStash       PartyStashItem[]
+  preparedItems    CastlePreparedItem[]
+  archetypeOptions ArchetypeEquipmentOption[]
 }
 
 model CharacterInventory {
@@ -120,11 +162,12 @@ model CharacterInventory {
 }
 
 model Talent {
-  id          String     @id @default(uuid())
-  name        String
-  description String
-  type        TalentType
-  archetypeId String?
+  id                 String                    @id @default(uuid())
+  name               String
+  description        String
+  type               TalentType
+  archetypeId        String?
+  startingArchetypes ArchetypeStartingTalent[]
 }
 
 model NPC {

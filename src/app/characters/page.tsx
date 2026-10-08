@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PageMasthead from "@/components/page-masthead";
 import prisma from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/access";
 
@@ -21,24 +22,12 @@ export default async function CharactersPage() {
   return (
     <main className="px-4 py-10 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-[var(--ledger-accent)]">Character Ledger</p>
-            <h1 className="mt-2 text-4xl font-black tracking-tight text-[var(--ledger-ink)]">Your Hunters</h1>
-            <p className="mt-2 text-sm text-[var(--ledger-ink-soft)]">
-              Open sheets, review party assignments, and start new investigators.
-            </p>
-          </div>
-
-          <Link href="/characters/create" className="rounded-full border border-[var(--ledger-accent)]/65 bg-[rgba(127,48,40,0.12)] px-5 py-3 text-sm font-semibold text-[var(--ledger-accent)] transition-colors hover:bg-[rgba(127,48,40,0.12)]">
-            Create Character
-          </Link>
-        </div>
+        <PageMasthead title="Your Hunters" eyebrow="Character Ledger" description="The people who see beyond the ordinary. Open a sheet to roll, track conditions, and record what you uncover."><Link className="ledger-button ledger-button-primary" href="/characters/create">New Character</Link></PageMasthead>
 
         {characters.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {characters.map((character) => (
-              <Link key={character.id} href={`/characters/${character.id}`} className="rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-5 transition-colors hover:border-[var(--ledger-accent)]/65">
+              <Link key={character.id} href={`/characters/${character.id}`} className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-5 transition-colors hover:border-[var(--ledger-accent)]/65">
                 <p className="text-xs uppercase tracking-[0.25em] text-[var(--ledger-ink-soft)]">{character.archetype.name}</p>
                 <h2 className="mt-2 text-2xl font-bold text-[var(--ledger-ink)]">{character.name}</h2>
                 <p className="mt-2 text-sm text-[var(--ledger-ink-soft)]">
@@ -59,7 +48,7 @@ export default async function CharactersPage() {
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-6 text-sm text-[var(--ledger-ink-soft)]">
+          <div className="rounded-sm border border-dashed border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-6 text-sm text-[var(--ledger-ink-soft)]">
             You have not created any characters yet.
           </div>
         )}

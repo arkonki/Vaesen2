@@ -28,7 +28,7 @@ export default async function NotesPage({ params }: { params: Promise<{ id: stri
         </p>
       </div>
 
-      <div className="flex-1 bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-2xl p-8 shadow-2xl overflow-hidden min-h-[600px]">
+      <div className="flex-1 bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-sm p-8 shadow-2xl overflow-hidden min-h-[600px]">
         <NoteEditor partyId={id} initialContent={sanitizeNotes(party.notes || "")} isGM={access.isGM} />
       </div>
     </div>

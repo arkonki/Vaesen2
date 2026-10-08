@@ -60,6 +60,7 @@ export default function Step3Attributes({ data, update, onNext, onPrev }: Wizard
 
               <div className="flex items-center gap-3 bg-[var(--ledger-paper)] rounded-lg p-1 border border-[var(--ledger-line)]/55">
                 <button
+                  aria-label={`Decrease ${attr.label}`}
                   onClick={() => handleAdjust(attr.key as keyof typeof attributes, -1)}
                   disabled={atMin}
                   className="p-2 text-[var(--ledger-ink-soft)] hover:text-[var(--ledger-ink)] hover:bg-[var(--ledger-paper-deep)] disabled:opacity-30 disabled:hover:bg-transparent rounded transition-colors"
@@ -70,6 +71,7 @@ export default function Step3Attributes({ data, update, onNext, onPrev }: Wizard
                   {val}
                 </div>
                 <button
+                  aria-label={`Increase ${attr.label}`}
                   onClick={() => handleAdjust(attr.key as keyof typeof attributes, 1)}
                   disabled={atMax}
                   className="p-2 text-[var(--ledger-ink-soft)] hover:text-[var(--ledger-ink)] hover:bg-[var(--ledger-paper-deep)] disabled:opacity-30 disabled:hover:bg-transparent rounded transition-colors"
@@ -82,7 +84,7 @@ export default function Step3Attributes({ data, update, onNext, onPrev }: Wizard
         })}
       </div>
 
-      <div className="mt-8 flex justify-between flex-grow items-end border-t border-[var(--ledger-line)]/55 pt-6">
+      <div className="mt-8 flex flex-wrap gap-3 justify-between flex-grow items-end border-t border-[var(--ledger-line)]/55 pt-6">
         <button onClick={onPrev} className="text-[var(--ledger-ink-soft)] hover:text-[var(--ledger-ink)] px-4 py-2 transition-colors">
           Back
         </button>

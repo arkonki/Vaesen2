@@ -61,7 +61,7 @@ export default function TaskBoard({ partyId, initialTasks, isGM }: { partyId: st
       )}
 
       {isAdding && (
-        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-xl p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-sm p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
           <h3 className="text-lg font-bold text-[var(--ledger-ink)] mb-4">New Objective</h3>
           <div className="space-y-4">
             <input
@@ -102,7 +102,7 @@ export default function TaskBoard({ partyId, initialTasks, isGM }: { partyId: st
               {tasks.filter(t => t.status === status).map((task) => (
                 <div
                   key={task.id}
-                  className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 p-4 rounded-xl shadow-lg hover:border-[var(--ledger-line)]/55 transition-all group"
+                  className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 p-4 rounded-sm shadow-lg hover:border-[var(--ledger-line)]/55 transition-all group"
                 >
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="text-sm font-bold text-[var(--ledger-ink)] leading-snug">{task.title}</h4>

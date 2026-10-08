@@ -107,7 +107,7 @@ export default function HQDashboard({
           <p>Development Points</p>
         </div>
       </header>
-      <nav aria-label="Castle sections" className="flex flex-wrap gap-2">
+      <nav aria-label="Castle sections" className="ledger-tabs">
         {tabs.map((t) => (
           <Button key={t} aria-pressed={tab === t} onClick={() => setTab(t)}>
             {t}

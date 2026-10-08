@@ -7,6 +7,7 @@ import { ItemType, Role, TalentType, Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { publicUserSelect } from "@/lib/security";
 import { passwordSchema, userProfileSchema } from "@/lib/user-validation";
+import { saveArchetypeTemplate } from "@/lib/archetype-service";
 
 async function requireAdmin() {
   const session = await getAppSession();
@@ -17,17 +18,21 @@ async function requireAdmin() {
 
 // ------ ARCHETYPES ------ //
 
-export async function createArchetype(data: { name: string; mainAttribute: string; mainSkill: string; startingResourcesMin: number; startingResourcesMax: number }) {
+export async function createArchetype(data: unknown) {
   await requireAdmin();
-  const created = await prisma.archetype.create({ data });
+  const created = await saveArchetypeTemplate(data);
   revalidatePath("/admin/archetypes");
+  revalidatePath("/characters/create");
+  revalidatePath("/compendium");
   return created;
 }
 
-export async function updateArchetype(id: string, data: { name: string; mainAttribute: string; mainSkill: string; startingResourcesMin: number; startingResourcesMax: number }) {
+export async function updateArchetype(id: string, data: unknown) {
   await requireAdmin();
-  const updated = await prisma.archetype.update({ where: { id }, data });
+  const updated = await saveArchetypeTemplate(data, id);
   revalidatePath("/admin/archetypes");
+  revalidatePath("/characters/create");
+  revalidatePath("/compendium");
   return updated;
 }
 
@@ -50,6 +55,10 @@ export async function createTalent(data: { name: string; description: string; ty
 
 export async function updateTalent(id: string, data: { name: string; description: string; type: TalentType; archetypeId?: string }) {
   await requireAdmin();
+  const references = await prisma.archetypeStartingTalent.findMany({ where: { talentId: id } });
+  if (data.type !== "GENERAL" && references.some(entry => entry.archetypeId !== data.archetypeId)) {
+    throw new Error("Remove this talent from other archetypes' starting lists before changing its archetype.");
+  }
   if (!data.archetypeId) data.archetypeId = undefined;
   const updated = await prisma.talent.update({ where: { id }, data });
   revalidatePath("/admin/talents");

@@ -31,10 +31,11 @@ export default function Step2Age({ data, update, onNext, onPrev }: WizardStepPro
           return (
             <button
               key={a.group}
+                   aria-pressed={selected}
               onClick={() => setAge(a.group as WizardState["ageGroup"], a.attrs, a.skills)}
               className={`text-left p-6 rounded-lg border transition-all flex flex-col h-full ${
                 selected
-                 ? 'bg-[rgba(127,48,40,0.12)] border-[var(--ledger-accent)]/65 shadow-[0_0_15px_rgba(99,102,241,0.2)]'
+                 ? 'bg-[rgba(127,48,40,0.12)] border-[var(--ledger-accent)]/65 shadow-sm'
                  : 'bg-[var(--ledger-paper)] border-[var(--ledger-line)]/55 hover:border-[var(--ledger-line)]/55'
               }`}
             >
@@ -42,11 +43,11 @@ export default function Step2Age({ data, update, onNext, onPrev }: WizardStepPro
               <p className="text-sm text-[var(--ledger-accent)] mb-4">{a.range} years</p>
 
               <div className="space-y-2 mt-auto text-sm">
-                <div className="flex justify-between items-center bg-[var(--ledger-surface-strong)] p-2 rounded border border-[var(--ledger-line)]/55">
+                <div className="flex flex-wrap gap-3 justify-between items-center bg-[var(--ledger-surface-strong)] p-2 rounded border border-[var(--ledger-line)]/55">
                   <span className="text-[var(--ledger-ink-soft)]">Attributes</span>
                   <span className="font-bold text-[var(--ledger-ink)]">{a.attrs}</span>
                 </div>
-                <div className="flex justify-between items-center bg-[var(--ledger-surface-strong)] p-2 rounded border border-[var(--ledger-line)]/55">
+                <div className="flex flex-wrap gap-3 justify-between items-center bg-[var(--ledger-surface-strong)] p-2 rounded border border-[var(--ledger-line)]/55">
                   <span className="text-[var(--ledger-ink-soft)]">Skills</span>
                   <span className="font-bold text-[var(--ledger-ink)]">{a.skills}</span>
                 </div>
@@ -57,7 +58,7 @@ export default function Step2Age({ data, update, onNext, onPrev }: WizardStepPro
         })}
       </div>
 
-      <div className="mt-8 flex justify-between flex-grow items-end border-t border-[var(--ledger-line)]/55 pt-6">
+      <div className="mt-8 flex flex-wrap gap-3 justify-between flex-grow items-end border-t border-[var(--ledger-line)]/55 pt-6">
         <button onClick={onPrev} className="text-[var(--ledger-ink-soft)] hover:text-[var(--ledger-ink)] px-4 py-2 transition-colors">
           Back
         </button>
@@ -66,7 +67,7 @@ export default function Step2Age({ data, update, onNext, onPrev }: WizardStepPro
           onClick={onNext}
           className="bg-[rgba(127,48,40,0.12)] hover:bg-[rgba(127,48,40,0.12)] disabled:opacity-50 disabled:cursor-not-allowed text-[var(--ledger-ink)] px-8 py-3 rounded-md font-bold transition-all"
         >
-          Next Step: Attributes
+          Next: Name
         </button>
       </div>
     </div>

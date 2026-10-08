@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MysteryEntityType, MysteryStatus } from "@prisma/client";
 import {
@@ -45,8 +45,21 @@ export default function MysteryBoard({
 }) {
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
+  const [filter, setFilter] = useState("CURRENT");
+  const [query, setQuery] = useState("");
+  const [error, setError] = useState("");
   const [draft, setDraft] = useState({ title: "", summary: "", hook: "", status: "PREP" as MysteryStatus });
   const [busyId, setBusyId] = useState<string | null>(null);
+  useEffect(() => {
+    const revealLinkedMystery = () => { if (window.location.hash) setFilter("ALL"); };
+    revealLinkedMystery();
+    window.addEventListener("hashchange", revealLinkedMystery);
+    return () => window.removeEventListener("hashchange", revealLinkedMystery);
+  }, []);
+  const visibleMysteries = mysteries.filter(mystery =>
+    (filter === "ALL" || (filter === "CURRENT" ? ["PREP", "ACTIVE"].includes(mystery.status) : mystery.status === filter)) &&
+    (mystery.title + " " + mystery.summary).toLowerCase().includes(query.toLowerCase()),
+  ).sort((a,b) => Number(b.status === "ACTIVE") - Number(a.status === "ACTIVE"));
 
   async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,6 +67,7 @@ export default function MysteryBoard({
       return;
     }
 
+    setError("");
     setBusyId("create");
     try {
       await createMystery(partyId, {
@@ -65,15 +79,17 @@ export default function MysteryBoard({
       setDraft({ title: "", summary: "", hook: "", status: "PREP" });
       setIsCreating(false);
       router.refresh();
-    } finally {
+    } catch (e) { setError(e instanceof Error ? e.message : "Mystery creation failed"); } finally {
       setBusyId(null);
     }
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {error && <p role="alert" className="ledger-status">{error}</p>}
+      <div className="ledger-search-toolbar"><label>Find a mystery<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Title or summary..." /></label><label>Status<select value={filter} onChange={event => setFilter(event.target.value)}><option value="CURRENT">Current investigations</option><option value="ALL">All mysteries</option>{STATUS_OPTIONS.map(status => <option key={status} value={status}>{status}</option>)}</select></label></div>
       {canEdit ? (
-        <div className="rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
+        <div className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-bold text-[var(--ledger-ink)]">Mystery Log</h2>
@@ -91,30 +107,34 @@ export default function MysteryBoard({
           {isCreating ? (
             <form onSubmit={handleCreate} className="mt-5 grid gap-4">
               <input
+                aria-label="New mystery title"
                 required
                 value={draft.title}
                 onChange={(event) => setDraft({ ...draft, title: event.target.value })}
                 placeholder="The Lantern House"
-                className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+                className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
               />
               <textarea
+                aria-label="New mystery summary"
                 required
                 value={draft.summary}
                 onChange={(event) => setDraft({ ...draft, summary: event.target.value })}
                 placeholder="What is known at the outset?"
-                className="min-h-28 rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+                className="min-h-28 rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
               />
               <div className="grid gap-4 md:grid-cols-[1fr_0.35fr_auto]">
                 <input
+                  aria-label="New mystery hook"
                   value={draft.hook}
                   onChange={(event) => setDraft({ ...draft, hook: event.target.value })}
                   placeholder="Initial hook"
-                  className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+                  className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
                 />
                 <select
+                  aria-label="New mystery status"
                   value={draft.status}
                   onChange={(event) => setDraft({ ...draft, status: event.target.value as MysteryStatus })}
-                  className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+                  className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
                 >
                   {STATUS_OPTIONS.map((status) => (
                     <option key={status} value={status}>
@@ -135,9 +155,10 @@ export default function MysteryBoard({
         </div>
       ) : null}
 
-      {mysteries.length > 0 ? (
+      <p role="status" className="ledger-helper-copy">{visibleMysteries.length} {visibleMysteries.length === 1 ? "mystery" : "mysteries"} in this view</p>
+      {visibleMysteries.length > 0 ? (
         <div className="space-y-6">
-          {mysteries.map((mystery) => (
+          {visibleMysteries.map((mystery) => (
             <MysteryPanel
               key={mystery.id}
               mystery={mystery}
@@ -148,8 +169,8 @@ export default function MysteryBoard({
           ))}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-6 text-sm text-[var(--ledger-ink-soft)]">
-          No mysteries logged for this party yet.
+        <div className="rounded-sm border border-dashed border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-6 text-sm text-[var(--ledger-ink-soft)]">
+          {mysteries.length ? "No mysteries match this view. Try All mysteries or a different search." : "No mysteries logged for this party yet."}
         </div>
       )}
     </div>
@@ -169,6 +190,15 @@ function MysteryPanel({
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(mystery.title);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const panel = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const openLinkedMystery = () => { if (window.location.hash === `#${mystery.id}` && panel.current) panel.current.open = true; };
+    openLinkedMystery();
+    window.addEventListener("hashchange", openLinkedMystery);
+    return () => window.removeEventListener("hashchange", openLinkedMystery);
+  }, [mystery.id]);
   const [summary, setSummary] = useState(mystery.summary);
   const [hook, setHook] = useState(mystery.hook ?? "");
   const [aftermath, setAftermath] = useState(mystery.aftermath ?? "");
@@ -178,6 +208,7 @@ function MysteryPanel({
   const [newEntity, setNewEntity] = useState({ name: "", type: "PERSON" as MysteryEntityType, details: "" });
 
   async function saveCore() {
+    setError(""); setNotice("");
     setBusyId(mystery.id);
     try {
       await updateMystery(mystery.id, {
@@ -187,23 +218,28 @@ function MysteryPanel({
         aftermath: aftermath.trim(),
         status,
       });
+      setNotice("Mystery saved.");
       router.refresh();
-    } finally {
+    } catch (e) { setError(e instanceof Error ? e.message : "Mystery could not be saved"); } finally {
       setBusyId(null);
     }
   }
 
   return (
-    <article className="rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-6">
+    <details ref={panel} id={mystery.id} open={mystery.status === "ACTIVE"} className="ledger-mystery border border-[var(--ledger-line)] bg-[var(--ledger-paper)]">
+      <summary><span>{mystery.title}</span><span className="text-sm text-[var(--ledger-accent)]">{mystery.status}</span><span className="text-sm font-normal">{mystery.clues.length} clues</span></summary>
+      <article className="p-4 sm:p-6">
+      {error && <p role="alert" className="ledger-status">{error}</p>}{notice && <p role="status" className="ledger-status">{notice}</p>}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.25em] text-[var(--ledger-accent)]">{status}</p>
           {canEdit && <VisibilityButton kind="mystery" id={mystery.id} visible={mystery.isPublished} />}
           {canEdit ? (
             <input
+              aria-label="Mystery title"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-2xl font-bold text-[var(--ledger-ink)] outline-none"
+              className="mt-2 w-full rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-2xl font-bold text-[var(--ledger-ink)] outline-none"
             />
           ) : (
             <h2 className="mt-2 text-2xl font-bold text-[var(--ledger-ink)]">{mystery.title}</h2>
@@ -223,10 +259,10 @@ function MysteryPanel({
               <textarea
                 value={summary}
                 onChange={(event) => setSummary(event.target.value)}
-                className="mt-2 min-h-28 w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+                className="mt-2 min-h-28 w-full rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
               />
             ) : (
-              <p className="mt-2 rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] p-4 text-sm text-[var(--ledger-ink)]">{summary}</p>
+              <p className="mt-2 rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] p-4 text-sm text-[var(--ledger-ink)]">{summary}</p>
             )}
           </label>
 
@@ -236,10 +272,10 @@ function MysteryPanel({
               <textarea
                 value={hook}
                 onChange={(event) => setHook(event.target.value)}
-                className="mt-2 min-h-20 w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+                className="mt-2 min-h-20 w-full rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
               />
             ) : (
-              <p className="mt-2 rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] p-4 text-sm text-[var(--ledger-ink)]">{hook || "No hook recorded."}</p>
+              <p className="mt-2 rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] p-4 text-sm text-[var(--ledger-ink)]">{hook || "No hook recorded."}</p>
             )}
           </label>
 
@@ -249,16 +285,17 @@ function MysteryPanel({
               <textarea
                 value={aftermath}
                 onChange={(event) => setAftermath(event.target.value)}
-                className="mt-2 min-h-24 w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+                className="mt-2 min-h-24 w-full rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
               />
             ) : (
-              <p className="mt-2 rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] p-4 text-sm text-[var(--ledger-ink)]">{aftermath || "No aftermath recorded."}</p>
+              <p className="mt-2 rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] p-4 text-sm text-[var(--ledger-ink)]">{aftermath || "No aftermath recorded."}</p>
             )}
           </label>
 
           {canEdit ? (
             <div className="flex flex-wrap gap-3">
               <select
+                aria-label="Mystery status"
                 value={status}
                 onChange={(event) => setStatus(event.target.value as MysteryStatus)}
                 className="rounded-full border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-2 text-sm text-[var(--ledger-ink)] outline-none"
@@ -286,7 +323,7 @@ function MysteryPanel({
                     try {
                       await archiveMystery(mystery.id);
                       router.refresh();
-                    } finally {
+                    } catch (e) { setError(e instanceof Error ? e.message : "Archive failed"); } finally {
                       setBusyId(null);
                     }
                   }}
@@ -323,8 +360,24 @@ function MysteryPanel({
           />
         </div>
       </div>
-    </article>
+      </article>
+    </details>
   );
+}
+
+function useMysteryMutation() {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const pending = useRef(false);
+  async function run(action: () => Promise<unknown>) {
+    if (pending.current) return;
+    pending.current = true; setBusy(true); setError("");
+    try { await action(); router.refresh(); }
+    catch (e) { setError(e instanceof Error ? e.message : "This change could not be saved. Please try again."); }
+    finally { pending.current = false; setBusy(false); }
+  }
+  return { run, busy, error };
 }
 
 function ClueSection({
@@ -340,21 +393,23 @@ function ClueSection({
   newClue: string;
   setNewClue: (value: string) => void;
 }) {
-  const router = useRouter();
+  const { run, busy, error } = useMysteryMutation();
 
   return (
-    <section className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] p-4">
+    <section aria-busy={busy} className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] p-4">
+      {error && <p role="alert" className="ledger-status mb-3">{error}</p>}
       <h3 className="text-lg font-semibold text-[var(--ledger-ink)]">Clues</h3>
       <div className="mt-3 space-y-2">
         {clues.length > 0 ? clues.map((clue) => (
           <div key={clue.id} className="flex items-start gap-3 rounded-lg border border-[var(--ledger-line)]/55 p-3">
             {canEdit ? (
               <input
+                aria-label={`Resolve clue: ${clue.content}`}
+                disabled={busy}
                 type="checkbox"
                 checked={clue.isResolved}
                 onChange={async (event) => {
-                  await toggleMysteryClue(clue.id, event.target.checked);
-                  router.refresh();
+                  await run(() => toggleMysteryClue(clue.id, event.target.checked));
                 }}
                 className="mt-1"
               />
@@ -365,10 +420,10 @@ function ClueSection({
                 {canEdit && <VisibilityButton kind="clue" id={clue.id} visible={clue.isRevealed} />}</p>
             {canEdit ? (
               <button
+                disabled={busy}
                 type="button"
                 onClick={async () => {
-                  await deleteMysteryClue(clue.id);
-                  router.refresh();
+                  await run(() => deleteMysteryClue(clue.id));
                 }}
                 className="text-xs text-[var(--ledger-danger)]"
               >
@@ -388,19 +443,18 @@ function ClueSection({
             if (!newClue.trim()) {
               return;
             }
-            await addMysteryClue(mysteryId, newClue.trim());
-            setNewClue("");
-            router.refresh();
+            await run(async () => { await addMysteryClue(mysteryId, newClue.trim()); setNewClue(""); });
           }}
           className="mt-4 flex gap-3"
         >
           <input
+            aria-label="New clue"
             value={newClue}
             onChange={(event) => setNewClue(event.target.value)}
-            className="flex-1 rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
+            className="flex-1 rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
             placeholder="Add a clue"
           />
-          <button type="submit" className="rounded-full border border-[var(--ledger-line)]/55 px-4 py-2 text-sm text-[var(--ledger-ink)]">
+          <button disabled={busy} type="submit" className="rounded-full border border-[var(--ledger-line)]/55 px-4 py-2 text-sm text-[var(--ledger-ink)]">
             Add
           </button>
         </form>
@@ -422,10 +476,11 @@ function EntitySection({
   draft: { name: string; type: MysteryEntityType; details: string };
   setDraft: (value: { name: string; type: MysteryEntityType; details: string }) => void;
 }) {
-  const router = useRouter();
+  const { run, busy, error } = useMysteryMutation();
 
   return (
-    <section className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] p-4">
+    <section aria-busy={busy} className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] p-4">
+      {error && <p role="alert" className="ledger-status mb-3">{error}</p>}
       <h3 className="text-lg font-semibold text-[var(--ledger-ink)]">Entities</h3>
       <div className="mt-3 space-y-2">
         {entities.length > 0 ? entities.map((entity) => (
@@ -437,10 +492,10 @@ function EntitySection({
                 <span className="text-xs uppercase tracking-[0.2em] text-[var(--ledger-ink-soft)]">{entity.type}</span>
                 {canEdit ? (
                   <button
+                disabled={busy}
                     type="button"
                     onClick={async () => {
-                      await deleteMysteryEntity(entity.id);
-                      router.refresh();
+                      await run(() => deleteMysteryEntity(entity.id));
                     }}
                     className="text-xs text-[var(--ledger-danger)]"
                   >
@@ -463,27 +518,27 @@ function EntitySection({
             if (!draft.name.trim()) {
               return;
             }
-            await addMysteryEntity(mysteryId, {
+            await run(async () => { await addMysteryEntity(mysteryId, {
               name: draft.name.trim(),
               type: draft.type,
               details: draft.details.trim(),
-            });
-            setDraft({ name: "", type: "PERSON", details: "" });
-            router.refresh();
+            }); setDraft({ name: "", type: "PERSON", details: "" }); });
           }}
           className="mt-4 grid gap-3"
         >
           <div className="grid gap-3 md:grid-cols-[1fr_0.45fr]">
             <input
+              aria-label="Entity name"
               value={draft.name}
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-              className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
+              className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
               placeholder="Name"
             />
             <select
+              aria-label="Entity type"
               value={draft.type}
               onChange={(event) => setDraft({ ...draft, type: event.target.value as MysteryEntityType })}
-              className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
+              className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
             >
               <option value="PERSON">Person</option>
               <option value="NPC">NPC</option>
@@ -491,12 +546,13 @@ function EntitySection({
             </select>
           </div>
           <input
+            aria-label="Entity details"
             value={draft.details}
             onChange={(event) => setDraft({ ...draft, details: event.target.value })}
-            className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
+            className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
             placeholder="Details"
           />
-          <button type="submit" className="w-fit rounded-full border border-[var(--ledger-line)]/55 px-4 py-2 text-sm text-[var(--ledger-ink)]">
+          <button disabled={busy} type="submit" className="w-fit rounded-full border border-[var(--ledger-line)]/55 px-4 py-2 text-sm text-[var(--ledger-ink)]">
             Add Entity
           </button>
         </form>
@@ -518,10 +574,11 @@ function LocationSection({
   draft: { name: string; details: string };
   setDraft: (value: { name: string; details: string }) => void;
 }) {
-  const router = useRouter();
+  const { run, busy, error } = useMysteryMutation();
 
   return (
-    <section className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] p-4">
+    <section aria-busy={busy} className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] p-4">
+      {error && <p role="alert" className="ledger-status mb-3">{error}</p>}
       <h3 className="text-lg font-semibold text-[var(--ledger-ink)]">Locations</h3>
       <div className="mt-3 space-y-2">
         {locations.length > 0 ? locations.map((location) => (
@@ -531,10 +588,10 @@ function LocationSection({
               {canEdit && <VisibilityButton kind="location" id={location.id} visible={location.isRevealed} />}
               {canEdit ? (
                 <button
+                disabled={busy}
                   type="button"
                   onClick={async () => {
-                    await deleteMysteryLocation(location.id);
-                    router.refresh();
+                    await run(() => deleteMysteryLocation(location.id));
                   }}
                   className="text-xs text-[var(--ledger-danger)]"
                 >
@@ -556,28 +613,28 @@ function LocationSection({
             if (!draft.name.trim()) {
               return;
             }
-            await addMysteryLocation(mysteryId, {
+            await run(async () => { await addMysteryLocation(mysteryId, {
               name: draft.name.trim(),
               details: draft.details.trim(),
-            });
-            setDraft({ name: "", details: "" });
-            router.refresh();
+            }); setDraft({ name: "", details: "" }); });
           }}
           className="mt-4 grid gap-3"
         >
           <input
+            aria-label="Location name"
             value={draft.name}
             onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-            className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
+            className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
             placeholder="Location name"
           />
           <input
+            aria-label="Location details"
             value={draft.details}
             onChange={(event) => setDraft({ ...draft, details: event.target.value })}
-            className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
+            className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none"
             placeholder="Details"
           />
-          <button type="submit" className="w-fit rounded-full border border-[var(--ledger-line)]/55 px-4 py-2 text-sm text-[var(--ledger-ink)]">
+          <button disabled={busy} type="submit" className="w-fit rounded-full border border-[var(--ledger-line)]/55 px-4 py-2 text-sm text-[var(--ledger-ink)]">
             Add Location
           </button>
         </form>

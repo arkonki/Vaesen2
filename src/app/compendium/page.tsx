@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAppSession } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import CompendiumClient from "./compendium-client";
+import { archetypeTemplateInclude } from "@/lib/archetype-template";
 
 export default async function CompendiumPage() {
   const session = await getAppSession();
@@ -15,7 +16,7 @@ export default async function CompendiumPage() {
   const [items, talents, archetypes, npcs, vaesen] = await Promise.all([
     prisma.item.findMany({ orderBy: { name: "asc" } }),
     prisma.talent.findMany({ orderBy: { name: "asc" } }),
-    prisma.archetype.findMany({ orderBy: { name: "asc" } }),
+    prisma.archetype.findMany({ orderBy: { name: "asc" }, include: archetypeTemplateInclude }),
     canViewGmContent ? prisma.nPC.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
     canViewGmContent ? prisma.vaesen.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);

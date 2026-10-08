@@ -8,8 +8,8 @@ import VaesenMark from "@/components/vaesen-mark";
 type DiceRollerModalProps = {
   initialDiceCount: number;
   title?: string;
-  triggerLabel?: string;
-  triggerVariant?: "ledger" | "header";
+  triggerLabel?: ReactNode;
+  triggerVariant?: "ledger" | "header" | "skill";
   allowPush?: boolean;
 };
 
@@ -41,7 +41,7 @@ export function DiceRollerProvider({ children }: { children: ReactNode }) {
 
 export default function DiceRollerModal(props: DiceRollerModalProps) {
   const open = useContext(DiceContext);
-  return <button type="button" className={`ledger-roll-trigger${props.triggerVariant === "header" ? " is-header" : ""}`} onClick={() => open?.(props)}>
+  return <button type="button" className={props.triggerVariant === "skill" ? "ledger-skill-roll" : `ledger-roll-trigger${props.triggerVariant === "header" ? " is-header" : ""}`} onClick={() => open?.(props)}>
     <Dices className="h-4 w-4" />{props.triggerLabel || "Open Dice Roller"}
   </button>;
 }
@@ -219,11 +219,11 @@ function DiceRollerDialog({ request }: { request: DiceRollerModalProps | null })
               <div className="dice-count-stepper">
                 <span className="dice-count-label">Dice Pool</span>
                 <div className="dice-count-controls">
-                  <button type="button" onClick={() => setDiceCount((value) => Math.max(0, value - 1))} disabled={isRolling}>
+                  <button type="button" aria-label="Remove one die" onClick={() => setDiceCount((value) => Math.max(0, value - 1))} disabled={isRolling}>
                     <Minus className="h-4 w-4" />
                   </button>
                   <span className="dice-count-value">{diceCount}</span>
-                  <button type="button" onClick={() => setDiceCount((value) => Math.min(50, value + 1))} disabled={isRolling}>
+                  <button type="button" aria-label="Add one die" onClick={() => setDiceCount((value) => Math.min(50, value + 1))} disabled={isRolling}>
                     <Plus className="h-4 w-4" />
                   </button>
                 </div>

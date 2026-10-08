@@ -30,6 +30,10 @@ export default function UserAdmin({ users }: { users: UserRecord[] }) {
   const [passwords, setPasswords] = useState<Record<string, string>>({});
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const visibleUsers = users.filter((user) =>
+    `${user.name ?? ""} ${user.email ?? ""} ${user.role}`.toLowerCase().includes(search.trim().toLowerCase()),
+  );
 
   async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -55,33 +59,35 @@ export default function UserAdmin({ users }: { users: UserRecord[] }) {
 
   return (
     <div className="space-y-8">
-      <form onSubmit={handleCreate} className="grid gap-4 rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-6 lg:grid-cols-4">
+      <details className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
+        <summary className="cursor-pointer font-display text-xl">Create a User</summary>
+      <form onSubmit={handleCreate} className="mt-5 grid gap-4 lg:grid-cols-4">
         <div>
-          <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]">Name</label>
-          <input
+          <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]" htmlFor="field-users-user-admin-tsx-0">Name</label>
+          <input id="field-users-user-admin-tsx-0"
             value={createForm.name}
             onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })}
-            className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+            className="w-full rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
             placeholder="Astrid"
           />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]">Email</label>
-          <input
+          <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]" htmlFor="field-users-user-admin-tsx-1">Email</label>
+          <input id="field-users-user-admin-tsx-1"
             required
             type="email"
             value={createForm.email}
             onChange={(event) => setCreateForm({ ...createForm, email: event.target.value })}
-            className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+            className="w-full rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
             placeholder="astrid@example.com"
           />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]">Role</label>
-          <select
+          <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]" htmlFor="field-users-user-admin-tsx-2">Role</label>
+          <select id="field-users-user-admin-tsx-2"
             value={createForm.role}
             onChange={(event) => setCreateForm({ ...createForm, role: event.target.value as Role })}
-            className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+            className="w-full rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
           >
             {ROLE_OPTIONS.map((role) => (
               <option key={role} value={role}>
@@ -91,21 +97,21 @@ export default function UserAdmin({ users }: { users: UserRecord[] }) {
           </select>
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]">Password</label>
-          <input
+          <label className="mb-2 block text-sm font-medium text-[var(--ledger-ink)]" htmlFor="field-users-user-admin-tsx-3">Password</label>
+          <input id="field-users-user-admin-tsx-3"
             required
             type="password"
             minLength={12}
             maxLength={72}
             value={createForm.password}
             onChange={(event) => setCreateForm({ ...createForm, password: event.target.value })}
-            className="w-full rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+            className="w-full rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
             placeholder="Temporary password"
           />
         </div>
 
         {error ? (
-          <div className="lg:col-span-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-[var(--ledger-danger)]">
+          <div role="alert" className="lg:col-span-4 rounded-sm border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-[var(--ledger-danger)]">
             {error}
           </div>
         ) : null}
@@ -120,10 +126,17 @@ export default function UserAdmin({ users }: { users: UserRecord[] }) {
           </button>
         </div>
       </form>
+      </details>
+
+      <div className="ledger-search-toolbar">
+        <label htmlFor="user-search" className="block text-sm font-semibold">Find a User</label>
+        <input id="user-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, email, or role" className="ledger-input mt-2 w-full" />
+        <p className="mt-2 text-sm text-[var(--ledger-ink-soft)]">{visibleUsers.length} of {users.length} users</p>
+      </div>
 
       <div className="space-y-4">
-        {users.map((user) => (
-          <article key={user.id} className="rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-6">
+        {visibleUsers.map((user) => (
+          <article key={user.id} className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] p-6">
             <UserRow
               user={user}
               password={passwords[user.id] ?? ""}
@@ -133,6 +146,7 @@ export default function UserAdmin({ users }: { users: UserRecord[] }) {
             />
           </article>
         ))}
+        {!visibleUsers.length && <p className="ledger-card p-6">No users match your search.</p>}
       </div>
     </div>
   );
@@ -209,22 +223,25 @@ function UserRow({
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr_0.4fr_auto]">
         <input
+          aria-label={`Name for ${user.email ?? "this user"}`}
           value={name}
           onChange={(event) => setName(event.target.value)}
-          className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+          className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
           placeholder="Name"
         />
         <input
+          aria-label={`Email for ${user.name ?? "this user"}`}
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+          className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
           placeholder="Email"
         />
         <select
+          aria-label={`Role for ${user.email ?? "this user"}`}
           value={role}
           onChange={(event) => setRole(event.target.value as Role)}
-          className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+          className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
         >
           {ROLE_OPTIONS.map((option) => (
             <option key={option} value={option}>
@@ -244,10 +261,14 @@ function UserRow({
 
       <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
         <input
+          aria-label={`New password for ${user.email ?? "this user"}`}
           type="password"
+          autoComplete="new-password"
+          minLength={12}
+          maxLength={72}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
+          className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface)] px-4 py-3 text-[var(--ledger-ink)] outline-none"
           placeholder="Set a new password"
         />
         <button

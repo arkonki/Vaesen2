@@ -1,11 +1,13 @@
 "use client";
 
-import type { Archetype, Item, Talent } from "@prisma/client";
-import { useState } from "react";
+import type { Item, Talent } from "@prisma/client";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPlayerCharacter } from "../actions";
-import { motion, AnimatePresence } from "framer-motion";
-
+import { initialState, firstIncompleteStep, restoreCharacterDraft, type WizardState } from "@/lib/character-draft";
+import { characterCreationSchema, validateCharacterAllocation } from "@/lib/character-rules";
+import { resolveStartingEquipment, type ArchetypeTemplate } from "@/lib/archetype-template";
+import StepName from "./step-name";
 import Step1Archetype from "./step1-archetype";
 import Step2Age from "./step2-age";
 import Step3Attributes from "./step3-attributes";
@@ -13,188 +15,103 @@ import Step4Skills from "./step4-skills";
 import Step5Details from "./step5-details";
 import Step6Equipment from "./step6-equipment";
 
-export type WizardState = {
-  name: string;
-  archetypeId: string;
-  mainAttribute: string;
-  mainSkill: string;
-  minResources: number;
-  maxResources: number;
-
-  ageGroup: "YOUNG" | "MIDDLE_AGED" | "OLD" | "";
-  attributeAllowance: number;
-  skillAllowance: number;
-
-  attributes: {
-    physique: number;
-    precision: number;
-    logic: number;
-    empathy: number;
-  };
-
-  skills: Record<string, number>;
-  resources: number;
-
-  talentId: string;
-  motivation: string;
-  trauma: string;
-  darkSecret: string;
-  memento: string;
-
-  equipment: Item[];
-};
-
-const initialState: WizardState = {
-  name: "",
-  archetypeId: "",
-  mainAttribute: "",
-  mainSkill: "",
-  minResources: 0,
-  maxResources: 0,
-  ageGroup: "",
-  attributeAllowance: 0,
-  skillAllowance: 0,
-  attributes: { physique: 2, precision: 2, logic: 2, empathy: 2 },
-  skills: {
-    agility: 0, closeCombat: 0, force: 0, medicine: 0, rangedCombat: 0, stealth: 0,
-    investigation: 0, learning: 0, vigilance: 0, inspiration: 0, manipulation: 0, observation: 0
-  },
-  resources: 0,
-  talentId: "",
-  motivation: "",
-  trauma: "",
-  darkSecret: "",
-  memento: "",
-  equipment: []
-};
-
+export type { WizardState } from "@/lib/character-draft";
 export type WizardStepProps = { data: WizardState; update: (fields: Partial<WizardState>) => void; onNext: () => void; onPrev: () => void };
+const steps = ["Archetype", "Age", "Name", "Attributes", "Skills", "Background", "Equipment", "Review"];
 
-export default function Wizard({ archetypes, talents, items, userId }: { archetypes: Archetype[]; talents: Talent[]; items: Item[]; userId: string }) {
+export default function Wizard({ archetypes, talents, items, userId }: { archetypes: ArchetypeTemplate[]; talents: Talent[]; items: Item[]; userId: string }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
+  const [furthest, setFurthest] = useState(1);
   const [data, setData] = useState<WizardState>(initialState);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [draftNotice, setDraftNotice] = useState("");
+  const [ready, setReady] = useState(false);
+  const completed = useRef(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const archetype = archetypes.find(entry => entry.id === data.archetypeId);
+  const draftKey = `vaesen-character-draft:${userId}`;
 
-  const totalSteps = 6;
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(draftKey);
+      if (raw) {
+        const draft = restoreCharacterDraft(raw, archetypes, talents, items);
+        if (draft) { setData(draft.data); setStep(draft.step); setFurthest(draft.step); setDraftNotice("Your draft was restored."); }
+        else sessionStorage.removeItem(draftKey);
+      }
+    } catch { setDraftNotice("Draft storage is unavailable. Keep this page open until creation is complete."); }
+    setReady(true);
+  }, [draftKey, archetypes, talents, items]);
 
+  useEffect(() => {
+    if (!ready || completed.current) return;
+    try { sessionStorage.setItem(draftKey, JSON.stringify({ version: 2, step, data: { ...data, equipment: data.equipment.map(({id}) => ({id})) } })); }
+    catch { setDraftNotice("Draft storage is unavailable. Keep this page open until creation is complete."); }
+  }, [ready, draftKey, data, step]);
+
+  const moveTo = (next: number) => {
+    setStep(next); setFurthest(value => Math.max(value, next)); setError("");
+    contentRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+    contentRef.current?.focus({ preventScroll: true });
+  };
   const updateData = (fields: Partial<WizardState>) => {
+    if ((data.archetypeId && fields.archetypeId && fields.archetypeId !== data.archetypeId) || (data.ageGroup && fields.ageGroup && fields.ageGroup !== data.ageGroup)) setDraftNotice("Changing archetype or age resets allocations, resources, equipment, and talent. Your background is kept.");
     setData(prev => {
-      const reset = (fields.archetypeId && fields.archetypeId !== prev.archetypeId) ||
-        (fields.ageGroup && fields.ageGroup !== prev.ageGroup);
-      return { ...prev, ...(reset ? {
-        attributes: { ...initialState.attributes }, skills: { ...initialState.skills },
-        talentId: "", equipment: [], resources: fields.minResources ?? prev.minResources,
-      } : {}), ...fields };
+    const reset = (fields.archetypeId && fields.archetypeId !== prev.archetypeId) || (fields.ageGroup && fields.ageGroup !== prev.ageGroup);
+    return { ...prev, ...(reset ? { attributes: { ...initialState.attributes }, skills: { ...initialState.skills }, talentId: "", equipment: [], equipmentChoices: {}, resources: fields.minResources ?? prev.minResources } : {}), ...fields };
     });
   };
+  const nextStep = () => moveTo(Math.min(step + 1, 8));
+  const prevStep = () => moveTo(Math.max(step - 1, 1));
 
-  const nextStep = () => setStep(s => Math.min(s + 1, totalSteps));
-  const prevStep = () => setStep(s => Math.max(s - 1, 1));
-
-  const submit = async () => {
+  async function submit() {
+    setError("");
+    const missing = firstIncompleteStep(data, archetype);
+    if (missing < 8) { moveTo(missing); setError("Complete this step before creating your character."); return; }
     setLoading(true);
     try {
-      const characterId = await createPlayerCharacter({ ...data, userId });
+      const parsed = characterCreationSchema.parse(data);
+      validateCharacterAllocation(parsed, archetypes.find(a => a.id === data.archetypeId)!);
+      const characterId = await createPlayerCharacter(parsed);
+      completed.current = true;
+      try { sessionStorage.removeItem(draftKey); } catch { /* Storage may be disabled. */ }
       router.push(`/characters/${characterId}`);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Character creation failed");
-      setLoading(false);
-    }
-  };
+    } catch (e) { setError(e instanceof Error ? e.message : "Character creation failed. Please try again."); setLoading(false); }
+  }
 
+  if (!ready) return <p role="status" className="p-6">Loading character draft...</p>;
   return (
-    <div className="flex flex-col md:flex-row min-h-[600px] bg-[var(--ledger-surface-strong)] overflow-hidden">
-      {/* Sidebar Progress Tracker */}
-      <div className="w-full md:w-64 bg-[var(--ledger-paper)] border-r border-[var(--ledger-line)]/55 p-6 flex flex-col">
-        <h3 className="text-lg font-bold text-[var(--ledger-accent)] mb-6 tracking-wide uppercase">Creation Steps</h3>
-        <nav className="space-y-4 flex-1">
-          <StepLink num={1} current={step} title="Archetype & Name" />
-          <StepLink num={2} current={step} title="Age & Allowances" />
-          <StepLink num={3} current={step} title="Attributes" />
-          <StepLink num={4} current={step} title="Skills & Resources" />
-          <StepLink num={5} current={step} title="Background & Talent" />
-          <StepLink num={6} current={step} title="Equipment" />
-        </nav>
-
-        {/* Live Counters */}
-        {(step === 3 || step === 4) && (
-          <div className="mt-8 pt-6 border-t border-[var(--ledger-line)]/55">
-             <h4 className="text-sm font-semibold text-[var(--ledger-ink-soft)] uppercase tracking-wider mb-3">Allocations</h4>
-             {step === 3 && (
-               <PointTracker
-                 label="Attributes"
-                 used={Object.values(data.attributes).reduce((a, b) => a + b, 0)}
-                 max={data.attributeAllowance}
-               />
-             )}
-             {step === 4 && (
-               <PointTracker
-                 label="Skills"
-                 used={Object.values(data.skills).reduce((a, b) => a + b, 0) + (data.resources - data.minResources)}
-                 max={data.skillAllowance}
-               />
-             )}
+    <div className="ledger-wizard">
+      <nav className="ledger-wizard-progress" aria-label="Character creation steps">
+        {steps.map((title, index) => <button key={title} type="button" aria-current={step === index + 1 ? "step" : undefined} disabled={loading || index + 1 > Math.min(furthest, firstIncompleteStep(data, archetype))} onClick={() => moveTo(index + 1)}>{index + 1}. {title}</button>)}
+      </nav>
+      <div className="border-b border-[var(--ledger-line)] px-4 py-3 text-sm">
+        <p role="status">{draftNotice || "Draft stored only in this browser tab and cleared on logout."}</p>
+        <p className="mt-1">Step {step} of 8: {steps[step - 1]}</p>
+        {(step === 4 || step === 5) && <p className="mt-1 font-bold text-[var(--ledger-accent)]">{step === 4 ? data.attributeAllowance - Object.values(data.attributes).reduce((a,b) => a+b,0) : data.skillAllowance - Object.values(data.skills).reduce((a,b) => a+b,0) - data.resources + data.minResources} points remaining</p>}
+      </div>
+      <div ref={contentRef} tabIndex={-1} className="ledger-wizard-content scroll-mt-36">
+        {error && <p role="alert" className="ledger-status mb-4 text-[var(--ledger-danger)]">{error}</p>}
+        {step === 1 && <Step1Archetype data={data} update={updateData} archetypes={archetypes} onNext={nextStep} />}
+        {step === 2 && <Step2Age data={data} update={updateData} onNext={nextStep} onPrev={prevStep} />}
+        {step === 3 && <StepName data={data} update={updateData} archetype={archetype} onNext={nextStep} onPrev={prevStep} />}
+        {step === 4 && <Step3Attributes data={data} update={updateData} onNext={nextStep} onPrev={prevStep} />}
+        {step === 5 && <Step4Skills data={data} update={updateData} onNext={nextStep} onPrev={prevStep} />}
+        {step === 6 && <Step5Details data={data} update={updateData} talents={talents} archetype={archetype} onNext={nextStep} onPrev={prevStep} />}
+        {step === 7 && <Step6Equipment data={data} update={updateData} items={items} archetype={archetype} onSubmit={nextStep} onPrev={prevStep} loading={loading} />}
+        {step === 8 && <div className="space-y-5">
+          <h2 className="text-2xl font-bold">Review Your Hunter</h2><p>Check the sheet before creating it. Use the steps above to make changes.</p>
+          <div className="ledger-review">
+            <dl><dt>Name</dt><dd>{data.name}</dd><dt>Archetype</dt><dd>{archetypes.find(a => a.id === data.archetypeId)?.name}</dd><dt>Age group</dt><dd>{data.ageGroup.replaceAll("_", " ")}</dd><dt>Resources</dt><dd>{data.resources}</dd></dl>
+            <dl>{Object.entries(data.attributes).map(([key,value]) => <div key={key}><dt className="capitalize">{key}</dt><dd>{value}</dd></div>)}</dl>
+            <dl>{Object.entries(data.skills).filter(([,value]) => value > 0).map(([key,value]) => <div key={key}><dt>{key.replace(/([A-Z])/g," $1")}</dt><dd>{value}</dd></div>)}</dl>
+            <dl><dt>Talent</dt><dd>{talents.find(t => t.id === data.talentId)?.name}</dd><dt>Equipment</dt><dd>{archetype?.equipmentGroups?.length ? resolveStartingEquipment(archetype, data.equipmentChoices).map(entry => `${items.find(item => item.id === entry.itemId)?.name ?? "Item"} x${entry.quantity}`).join(", ") : data.equipment.map(item => item.name).join(", ") || "None selected"}</dd><dt>Memento</dt><dd>{data.memento || "None"}</dd></dl>
+            <dl><dt>Motivation</dt><dd>{data.motivation}</dd><dt>Trauma</dt><dd>{data.trauma}</dd><dt>Dark secret (private)</dt><dd>{data.darkSecret}</dd><dt>Relationships</dt><dd className="whitespace-pre-wrap">{data.relationships || "To be established with the other PCs"}</dd></dl>
           </div>
-        )}
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col p-6 md:p-10 bg-[var(--ledger-surface-strong)] relative">
-        <div className="flex-1">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={step}
-              initial={{ x: 20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -20, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              {step === 1 && <Step1Archetype data={data} update={updateData} archetypes={archetypes} onNext={nextStep} />}
-              {step === 2 && <Step2Age data={data} update={updateData} onNext={nextStep} onPrev={prevStep} />}
-              {step === 3 && <Step3Attributes data={data} update={updateData} onNext={nextStep} onPrev={prevStep} />}
-              {step === 4 && <Step4Skills data={data} update={updateData} onNext={nextStep} onPrev={prevStep} />}
-              {step === 5 && <Step5Details data={data} update={updateData} talents={talents} onNext={nextStep} onPrev={prevStep} />}
-              {step === 6 && <Step6Equipment data={data} update={updateData} items={items} onSubmit={submit} onPrev={prevStep} loading={loading} />}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StepLink({ num, current, title }: { num: number; current: number; title: string }) {
-  const isActive = current === num;
-  const isPast = current > num;
-  return (
-    <div className={`flex items-center gap-3 ${isActive ? 'text-[var(--ledger-ink)]' : isPast ? 'text-[var(--ledger-accent)]' : 'text-[var(--ledger-ink-soft)]'} transition-colors`}>
-      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isActive ? 'bg-[rgba(127,48,40,0.12)] text-[var(--ledger-ink)]' : isPast ? 'bg-[rgba(127,48,40,0.12)] text-[var(--ledger-accent)]' : 'bg-[var(--ledger-paper-deep)] text-[var(--ledger-ink-soft)]'}`}>
-        {num}
-      </div>
-      <span className={`text-sm ${isActive ? 'font-semibold' : 'font-medium'}`}>{title}</span>
-    </div>
-  );
-}
-
-function PointTracker({ label, used, max }: { label: string; used: number; max: number }) {
-  const remaining = max - used;
-  const isOver = remaining < 0;
-  const isDone = remaining === 0;
-
-  return (
-    <div className="bg-[var(--ledger-paper)] p-4 rounded-md border border-[var(--ledger-line)]/55">
-      <div className="flex justify-between items-end mb-2">
-         <span className="text-sm font-medium text-[var(--ledger-ink)]">{label}</span>
-         <span className={`text-2xl font-bold ${isOver ? 'text-[var(--ledger-danger)]' : isDone ? 'text-[var(--ledger-success)]' : 'text-[var(--ledger-accent)]'}`}>
-           {remaining}
-         </span>
-      </div>
-      <div className="w-full bg-[var(--ledger-paper-deep)] h-2 rounded-full overflow-hidden">
-        <div
-          className={`h-full transition-all duration-300 ${isOver ? 'bg-red-500' : isDone ? 'bg-green-500' : 'bg-[rgba(127,48,40,0.12)]'}`}
-          style={{ width: `${Math.min((used / max) * 100, 100)}%` }}
-        />
+          <div className="flex flex-wrap justify-between gap-3"><button type="button" className="ledger-button" onClick={prevStep} disabled={loading}>Back to Equipment</button><button type="button" className="ledger-button ledger-button-primary" onClick={submit} disabled={loading}>{loading ? "Creating..." : "Create Character"}</button></div>
+        </div>}
       </div>
     </div>
   );

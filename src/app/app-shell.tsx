@@ -3,114 +3,61 @@
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
-import { BookOpen, Home, LogOut, ScrollText, Shield, Users } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { BookOpen, Home, LogOut, ScrollText, Shield, Users, UserRound } from "lucide-react";
 import VaesenMark from "@/components/vaesen-mark";
 import DiceRollerModal, { DiceRollerProvider } from "@/components/dice-roller-modal";
 
-type AppShellProps = {
-  role?: string;
-  userName?: string | null;
-  children: React.ReactNode;
-};
-
 const navigation = [
-  { href: "/", label: "Home", icon: Home, roles: ["PLAYER", "GM", "ADMIN"] },
-  { href: "/characters", label: "Characters", icon: ScrollText, roles: ["PLAYER", "GM", "ADMIN"] },
-  { href: "/parties", label: "Parties", icon: Users, roles: ["PLAYER", "GM", "ADMIN"] },
-  { href: "/compendium", label: "Compendium", icon: BookOpen, roles: ["PLAYER", "GM", "ADMIN"] },
-  { href: "/admin", label: "Admin", icon: Shield, roles: ["ADMIN"] },
+  { href: "/", label: "Home", icon: Home },
+  { href: "/characters", label: "Characters", icon: ScrollText },
+  { href: "/parties", label: "Parties", icon: Users },
+  { href: "/compendium", label: "Compendium", icon: BookOpen },
+  { href: "/admin", label: "Admin", icon: Shield },
 ];
 
-export default function AppShell({ role, userName, children }: AppShellProps) {
+export default function AppShell({ role, userName, children }: { role?: string; userName?: string | null; children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAuthPage = pathname === "/login";
-  const showShell = Boolean(role) && !isAuthPage;
+  if (!role || pathname === "/login") return <>{children}</>;
 
-  if (!showShell) {
-    return <>{children}</>;
+  async function logout() {
+    // Drafts are private to the signed-in account and this browser tab.
+    try {
+      for (const key of Object.keys(sessionStorage)) if (key.startsWith("vaesen-character-draft:") || key.startsWith("vaesen-journal-draft:")) sessionStorage.removeItem(key);
+    } catch { /* Storage may be disabled in private browsing. */ }
+    await signOut({ callbackUrl: "/login" });
   }
-
-  const links = navigation.filter((item) => role && item.roles.includes(role));
 
   return (
     <DiceRollerProvider>
-    <div className="min-h-screen bg-[linear-gradient(180deg,rgba(255,248,239,0.55),rgba(205,183,152,0.12))] text-[var(--ledger-ink)]">
-      <header className="sticky top-0 z-20 border-b border-[var(--ledger-frame)]/60 bg-[rgba(241,232,216,0.94)] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="rounded-full border border-[var(--ledger-frame)]/70 bg-[rgba(127,48,40,0.08)] p-2 text-[var(--ledger-accent)]">
-              <VaesenMark className="h-5 w-5" />
+      <div className="society-app">
+        <a href="#society-main" className="ledger-skip-link">Skip to content</a>
+        <header className="society-header">
+          <div className="society-header-top">
+            <Link href="/" className="society-brand" aria-label="Vaesen Society Ledger home">
+              <VaesenMark className="h-8 w-8 text-[var(--ledger-accent)]" />
+              <span><strong>VAESEN</strong><small>Society Ledger</small></span>
+            </Link>
+            <div className="flex items-center gap-2">
+              <DiceRollerModal initialDiceCount={0} title="Dice Roller" triggerLabel="Dice" triggerVariant="header" />
+              <details className="society-account">
+                <summary aria-label="Account menu"><span className="hidden sm:inline">{userName || "Society Member"}</span><span className="society-account-label sm:hidden">Account</span><UserRound aria-hidden="true" className="society-account-icon h-4 w-4" /></summary>
+                <div className="society-account-menu">
+                  <p className="font-bold">{userName || "Society Member"}</p>
+                  <p className="ledger-helper-copy">{role === "GM" ? "Game Master" : role === "ADMIN" ? "Administrator" : "Player"}</p>
+                  <button type="button" className="ledger-button mt-3 w-full" onClick={logout}><LogOut className="h-4 w-4" />Log out</button>
+                </div>
+              </details>
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-[var(--ledger-ink-soft)]">Vaesen</p>
-              <p className="text-sm font-semibold text-[var(--ledger-ink)]">Society Ledger</p>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-2 xl:flex">
-            {links.map((item) => {
-              const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "border px-4 py-2 text-sm font-semibold uppercase tracking-[0.14em] transition-colors",
-                    isActive
-                      ? "border-[var(--ledger-frame)]/80 bg-[rgba(127,48,40,0.08)] text-[var(--ledger-accent)]"
-                      : "border-[var(--ledger-frame)]/55 bg-[rgba(255,252,246,0.72)] text-[var(--ledger-ink)] hover:border-[var(--ledger-frame)]/80 hover:bg-[rgba(255,252,246,0.92)]"
-                  )}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-            <DiceRollerModal initialDiceCount={0} title="Shared Dice Roller" triggerLabel="Dice" triggerVariant="header" />
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-semibold text-[var(--ledger-ink)]">{userName || "Society Member"}</p>
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--ledger-ink-soft)]">{role}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="border border-[var(--ledger-frame)]/55 bg-[rgba(255,252,246,0.72)] p-2 text-[var(--ledger-ink)] transition-colors hover:border-[var(--ledger-frame)]/80 hover:bg-[rgba(255,252,246,0.92)]"
-              aria-label="Log out"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
           </div>
-        </div>
-      </header>
-
-      <div className="border-b border-[var(--ledger-frame)]/35 bg-[rgba(241,232,216,0.7)] px-4 py-3 xl:hidden">
-        <nav className="flex flex-wrap gap-2">
-          {links.map((item) => {
-            const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] transition-colors",
-                  isActive
-                    ? "border-[var(--ledger-frame)]/80 bg-[rgba(127,48,40,0.08)] text-[var(--ledger-accent)]"
-                    : "border-[var(--ledger-frame)]/55 bg-[rgba(255,252,246,0.72)] text-[var(--ledger-ink)]"
-                )}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-          <DiceRollerModal initialDiceCount={0} title="Shared Dice Roller" triggerLabel="Dice" triggerVariant="header" />
-        </nav>
+          <nav className="society-nav" aria-label="Main navigation">
+            {navigation.filter(item => item.href !== "/admin" || role === "ADMIN").map(item => {
+              const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+              return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}><item.icon className="h-4 w-4" />{item.label}</Link>;
+            })}
+          </nav>
+        </header>
+        <div className="society-content"><div id="society-main" tabIndex={-1}>{children}</div></div>
       </div>
-
-      {children}
-    </div>
     </DiceRollerProvider>
   );
 }

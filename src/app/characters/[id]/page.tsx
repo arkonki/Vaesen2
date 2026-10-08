@@ -213,6 +213,7 @@ export default async function CharacterSheetPage({
           }
         />
         <CharacterSheet
+          viewerId={session.user.id}
           characterId={character.id}
           canEdit={canEdit}
           name={character.name}

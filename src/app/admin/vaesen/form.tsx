@@ -11,10 +11,12 @@ import { Plus, Trash2 } from "lucide-react";
 export default function VaesenForm({ vaesen }: { vaesen?: Vaesen | null }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [conditions, setConditions] = useState<Record<string, string>>(stringRecord(vaesen?.conditions));
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setSaveError("");
     setLoading(true);
     const formData = new FormData(e.currentTarget);
     const data = {
@@ -39,8 +41,7 @@ export default function VaesenForm({ vaesen }: { vaesen?: Vaesen | null }) {
       }
       router.push("/admin/vaesen");
     } catch (error) {
-      console.error(error);
-      alert("Error saving Vaesen");
+      setSaveError(error instanceof Error ? error.message : "This entry could not be saved. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -69,18 +70,19 @@ export default function VaesenForm({ vaesen }: { vaesen?: Vaesen | null }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-3xl">
+    <form onSubmit={handleSubmit} aria-busy={loading} className="space-y-8 max-w-3xl">
+      {saveError && <p role="alert" className="ledger-status">{saveError}</p>}
       {/* Basic Info */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--ledger-ink)] border-b border-[var(--ledger-line)]/55 pb-2">Identity</h3>
           <div>
-            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Name</label>
-            <input required type="text" name="name" defaultValue={vaesen?.name} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
+            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-vaesen-form-tsx-0">Name</label>
+            <input id="field-vaesen-form-tsx-0" required type="text" name="name" defaultValue={vaesen?.name} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Description</label>
-            <textarea required rows={4} name="description" defaultValue={vaesen?.description} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
+            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-vaesen-form-tsx-1">Description</label>
+            <textarea id="field-vaesen-form-tsx-1" required rows={4} name="description" defaultValue={vaesen?.description} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
           </div>
         </div>
 
@@ -88,13 +90,13 @@ export default function VaesenForm({ vaesen }: { vaesen?: Vaesen | null }) {
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--ledger-ink)] border-b border-[var(--ledger-line)]/55 pb-2">Vaesen Stats</h3>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1">Might</label><input required type="number" name="might" defaultValue={vaesen?.might ?? 10} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-3 py-2 text-[var(--ledger-ink)]" /></div>
-            <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1">Body Control</label><input required type="number" name="bodyControl" defaultValue={vaesen?.bodyControl ?? 5} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-3 py-2 text-[var(--ledger-ink)]" /></div>
-            <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1">Magic</label><input required type="number" name="magic" defaultValue={vaesen?.magic ?? 0} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-3 py-2 text-[var(--ledger-ink)]" /></div>
-            <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1">Manipulation</label><input required type="number" name="manipulation" defaultValue={vaesen?.manipulation ?? 0} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-3 py-2 text-[var(--ledger-ink)]" /></div>
+            <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1" htmlFor="field-vaesen-form-tsx-2">Might</label><input id="field-vaesen-form-tsx-2" required type="number" name="might" defaultValue={vaesen?.might ?? 10} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-3 py-2 text-[var(--ledger-ink)]" /></div>
+            <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1" htmlFor="field-vaesen-form-tsx-3">Body Control</label><input id="field-vaesen-form-tsx-3" required type="number" name="bodyControl" defaultValue={vaesen?.bodyControl ?? 5} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-3 py-2 text-[var(--ledger-ink)]" /></div>
+            <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1" htmlFor="field-vaesen-form-tsx-4">Magic</label><input id="field-vaesen-form-tsx-4" required type="number" name="magic" defaultValue={vaesen?.magic ?? 0} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-3 py-2 text-[var(--ledger-ink)]" /></div>
+            <div><label className="block text-xs text-[var(--ledger-ink-soft)] mb-1" htmlFor="field-vaesen-form-tsx-5">Manipulation</label><input id="field-vaesen-form-tsx-5" required type="number" name="manipulation" defaultValue={vaesen?.manipulation ?? 0} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-3 py-2 text-[var(--ledger-ink)]" /></div>
             <div className="col-span-2">
-              <label className="block text-xs text-[var(--ledger-ink-soft)] mb-1">Fear Factor</label>
-              <input required type="number" name="fear" defaultValue={vaesen?.fear ?? 1} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-3 py-2 text-[var(--ledger-ink)]" />
+              <label className="block text-xs text-[var(--ledger-ink-soft)] mb-1" htmlFor="field-vaesen-form-tsx-6">Fear Factor</label>
+              <input id="field-vaesen-form-tsx-6" required type="number" name="fear" defaultValue={vaesen?.fear ?? 1} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded px-3 py-2 text-[var(--ledger-ink)]" />
             </div>
           </div>
         </div>
@@ -104,17 +106,17 @@ export default function VaesenForm({ vaesen }: { vaesen?: Vaesen | null }) {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-[var(--ledger-ink)] border-b border-[var(--ledger-line)]/55 pb-2">Mechanics & Lore</h3>
         <div>
-          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Magical Powers</label>
-          <textarea required rows={3} name="magicalPowers" defaultValue={vaesen?.magicalPowers} placeholder="Describe the Vaesen's unique magical abilities..." className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
+          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-vaesen-form-tsx-7">Magical Powers</label>
+          <textarea id="field-vaesen-form-tsx-7" required rows={3} name="magicalPowers" defaultValue={vaesen?.magicalPowers} placeholder="Describe the Vaesen's unique magical abilities..." className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">The Ritual (How to banish it)</label>
-            <textarea required rows={3} name="ritual" defaultValue={vaesen?.ritual} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
+            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-vaesen-form-tsx-8">The Ritual (How to banish it)</label>
+            <textarea id="field-vaesen-form-tsx-8" required rows={3} name="ritual" defaultValue={vaesen?.ritual} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">The Secret</label>
-            <textarea required rows={3} name="secret" defaultValue={vaesen?.secret} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
+            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-vaesen-form-tsx-9">The Secret</label>
+            <textarea id="field-vaesen-form-tsx-9" required rows={3} name="secret" defaultValue={vaesen?.secret} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
           </div>
         </div>
       </div>

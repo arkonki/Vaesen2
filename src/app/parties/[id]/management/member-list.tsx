@@ -37,7 +37,7 @@ export default function MemberList({ party, isGM }: { party: { id: string; membe
   return (
     <div className="space-y-6">
       {isGM && (
-        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-xl p-6 shadow-xl">
+        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-sm p-6 shadow-xl">
           <h3 className="text-lg font-semibold text-[var(--ledger-ink)] flex items-center gap-2 mb-4">
             <UserPlus className="w-5 h-5 text-[var(--ledger-accent)]" />
             Recruit New Member
@@ -68,7 +68,7 @@ export default function MemberList({ party, isGM }: { party: { id: string; membe
           const { physical: physicalCount, mental: mentalCount, isBroken } = summarizeConditions(char.physicalConditions, char.mentalConditions);
 
           return (
-            <div key={member.id} className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-xl overflow-hidden hover:border-[var(--ledger-line)]/55 transition-colors group">
+            <div key={member.id} className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-sm overflow-hidden hover:border-[var(--ledger-line)]/55 transition-colors group">
               <div className="p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -139,7 +139,7 @@ export default function MemberList({ party, isGM }: { party: { id: string; membe
         })}
 
         {party.members.length === 0 && (
-          <div className="col-span-full py-12 text-center bg-[var(--ledger-surface-strong)] border border-dashed border-[var(--ledger-line)]/55 rounded-xl">
+          <div className="col-span-full py-12 text-center bg-[var(--ledger-surface-strong)] border border-dashed border-[var(--ledger-line)]/55 rounded-sm">
             <p className="text-[var(--ledger-ink-soft)] italic">No members in this party yet.</p>
           </div>
         )}

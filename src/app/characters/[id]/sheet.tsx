@@ -69,6 +69,7 @@ type InventoryEntry = {
 
 type CharacterSheetProps = {
   characterId: string;
+  viewerId: string;
   canEdit: boolean;
   name: string;
   ageGroup: string;
@@ -273,6 +274,29 @@ export default function CharacterSheet(props: CharacterSheetProps) {
   const initialJournalState = useRef(true);
   const journalQueue = useRef<Promise<unknown>>(Promise.resolve());
   const [mutationError, setMutationError] = useState("");
+  const [journalRetry, setJournalRetry] = useState(0);
+  const [journalLoaded, setJournalLoaded] = useState(false);
+  const [recoveredJournal, setRecoveredJournal] = useState(false);
+  const journalKey = `vaesen-journal-draft:${props.viewerId}:${characterId}`;
+  const latestJournal = useRef({ notes, relationships });
+  latestJournal.current = { notes, relationships };
+
+  useEffect(() => {
+    if (!canEdit) return;
+    try {
+      const raw = sessionStorage.getItem(journalKey);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (typeof draft.notes === "string" && typeof draft.relationships === "string" && draft.notes.length <= 50000 && draft.relationships.length <= 50000) {
+          if (draft.notes !== props.notes || draft.relationships !== props.relationships) {
+            setNotes(draft.notes); setRelationships(draft.relationships);
+            initialJournalState.current = false; setRecoveredJournal(true);
+          } else sessionStorage.removeItem(journalKey);
+        }
+      }
+    } catch { /* Autosave still works when browser storage is unavailable. */ }
+    setJournalLoaded(true);
+  }, [canEdit, journalKey, props.notes, props.relationships]);
 
   const groupedInventory = useMemo(() => {
     const weapons = inventory.filter((entry) => entry.item.type === "WEAPON");
@@ -346,7 +370,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
   }
 
   useEffect(() => {
-    if (!canEdit) {
+    if (!canEdit || !journalLoaded) {
       return;
     }
 
@@ -357,12 +381,16 @@ export default function CharacterSheet(props: CharacterSheetProps) {
 
     let cancelled = false;
     setJournalStatus("saving");
+    try { sessionStorage.setItem(journalKey, JSON.stringify({ notes, relationships })); } catch { /* Storage is optional. */ }
 
     const timer = setTimeout(async () => {
       try {
         const save = journalQueue.current.catch(() => undefined).then(() => updateCharacterJournal(characterId, { notes, relationships }));
         journalQueue.current = save;
         await save;
+        if (latestJournal.current.notes === notes && latestJournal.current.relationships === relationships) {
+          try { sessionStorage.removeItem(journalKey); } catch { /* Storage is optional. */ }
+        }
         if (!cancelled) {
           setJournalStatus("saved");
         }
@@ -377,7 +405,14 @@ export default function CharacterSheet(props: CharacterSheetProps) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [canEdit, characterId, notes, relationships]);
+  }, [canEdit, characterId, notes, relationships, journalRetry, journalLoaded, journalKey]);
+
+  useEffect(() => {
+    if (journalStatus !== "saving" && journalStatus !== "error") return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [journalStatus]);
 
   const physicalLoad = conditionSetCount(physicalConditions, PHYSICAL_CONDITIONS.map((entry) => entry.key));
   const mentalLoad = conditionSetCount(mentalConditions, MENTAL_CONDITIONS.map((entry) => entry.key));
@@ -391,6 +426,9 @@ export default function CharacterSheet(props: CharacterSheetProps) {
 
   return (
     <div className="ledger-page space-y-6">
+      <nav className="ledger-section-nav" aria-label="Character sheet sections">
+        <a href="#sheet-play">Skills & Conditions</a><a href="#sheet-background">Background</a><a href="#sheet-equipment">Equipment</a><a href="#sheet-notes">Notes</a>
+      </nav>
       {mutationError && <p role="alert" className="ledger-panel p-3">{mutationError}</p>}
       <section className="ledger-sheet">
         <div className="ledger-top-grid">
@@ -427,6 +465,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                     onClick={() => handleXpToggle(index)}
                     className={cn("ledger-xp-mark", index < experiencePoints && "is-filled")}
                     aria-label={`Experience slot ${index + 1}`}
+                    aria-pressed={index < experiencePoints}
                   />
                 ))}
               </div>
@@ -438,8 +477,8 @@ export default function CharacterSheet(props: CharacterSheetProps) {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 xl:grid-cols-[0.34fr_0.66fr]">
-          <div className="space-y-4">
+        <div className="ledger-sheet-columns">
+          <div id="sheet-background" className="ledger-character-story space-y-4">
             <FieldBlock label="Motivation">
               <span className="ledger-multiline-text">{motivation}</span>
             </FieldBlock>
@@ -461,6 +500,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                 {canEdit ? (
                   <textarea
                     rows={8}
+                    aria-label="Relationships"
                     value={relationships}
                     onChange={(event) => setRelationships(event.target.value)}
                     className="ledger-textarea h-44"
@@ -511,8 +551,8 @@ export default function CharacterSheet(props: CharacterSheetProps) {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="ledger-panel">
+          <div className="ledger-character-play space-y-4">
+            <div id="sheet-play" className="ledger-panel">
               <SectionBar title="Attributes" />
               <div className="ledger-panel-body">
                 <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
@@ -557,14 +597,15 @@ export default function CharacterSheet(props: CharacterSheetProps) {
 
               <div className="border-t border-[var(--ledger-line)]/70 px-3 py-3">
                 <SectionBar title="Skills" />
-                <div className="mt-3 grid gap-3 xl:grid-cols-4">
+                <div className="mt-3 grid grid-cols-2 gap-3 xl:grid-cols-4">
                   {(["physique", "precision", "logic", "empathy"] as const).map((attributeKey) => (
                     <div key={attributeKey} className="space-y-2">
                       {SKILL_DEFINITIONS.filter((entry) => entry.attribute === attributeKey).map((entry) => (
-                        <div key={entry.key} className="ledger-skill-row">
-                          <span>{entry.label}</span>
-                          <span className="ledger-skill-value">{skills[entry.key]}</span>
-                        </div>
+                        <DiceRollerModal key={entry.key} triggerVariant="skill"
+                          initialDiceCount={Math.max(0, attributes[entry.attribute] + skills[entry.key] - (entry.domain === "physical" ? physicalLoad : mentalLoad))}
+                          title={`${entry.label} Roll`}
+                          triggerLabel={<><span className="flex-1">{entry.label}</span><small className="text-[var(--ledger-ink-soft)]">{Math.max(0, attributes[entry.attribute] + skills[entry.key] - (entry.domain === "physical" ? physicalLoad : mentalLoad))}d6</small><span className="ledger-skill-value">{skills[entry.key]}</span></>}
+                        />
                       ))}
                     </div>
                   ))}
@@ -627,7 +668,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
               </div>
 
               <div className="ledger-panel">
-                <SectionBar title="Advantages" />
+                <SectionBar title="Dice Pool Builder" />
                 <div className="ledger-panel-body space-y-3">
                   <div className="grid gap-3 md:grid-cols-[1.2fr_0.55fr_0.55fr]">
                     <label className="ledger-input-group">
@@ -666,6 +707,14 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                     </label>
                   </div>
 
+                  <p className="ledger-helper-copy">Tap a skill for a quick roll including conditions. Use this builder for gear and advantages.</p>
+                  {inventory.some(entry => entry.item.bonus !== 0) && <label className="ledger-input-group"><span>Use an inventory bonus</span>
+                    <select className="ledger-input" defaultValue="" onChange={event => setItemBonus(inventory.find(entry => entry.id === event.target.value)?.item.bonus ?? 0)}>
+                      <option value="">No item bonus</option>
+                      {inventory.filter(entry => entry.item.bonus !== 0).map(entry => <option key={entry.id} value={entry.id}>{entry.item.name} ({entry.item.bonus > 0 ? "+" : ""}{entry.item.bonus}){entry.item.skill ? ` - ${entry.item.skill}` : ""}</option>)}
+                    </select>
+                    <small className="ledger-helper-copy">Use only equipment applicable to this check; the GM decides.</small>
+                  </label>}
                   <div className="ledger-helper-copy space-y-1">
                     <p>Dice Pool = Attribute + Skill + Item Bonus + Advantages - Conditions</p>
                     <p>
@@ -686,7 +735,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
               </div>
             </div>
 
-            <div className="grid gap-4 xl:grid-cols-2">
+            <div id="sheet-equipment" className="grid gap-4 xl:grid-cols-2">
               <div className="ledger-panel">
                 <SectionBar title="Temporary Gear" />
                 <div className="ledger-panel-body">
@@ -738,20 +787,23 @@ export default function CharacterSheet(props: CharacterSheetProps) {
         </div>
       </section>
 
-      <section className="ledger-sheet">
+      <section id="sheet-notes" className="ledger-sheet">
+        {recoveredJournal && <p className="ledger-status mb-3">Recovered unsaved notes from this tab. They will be saved automatically.</p>}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionBar title="Campaign Notes" />
-          <p className="ledger-helper-copy">
+          <p role="status" className="ledger-helper-copy">
             {journalStatus === "saving" && "Saving"}
             {journalStatus === "saved" && "Saved"}
             {journalStatus === "error" && "Save failed"}
             {journalStatus === "idle" && (canEdit ? "Autosaves as you type" : "Read-only")}
           </p>
+          {canEdit && <button type="button" className="ledger-button" disabled={journalStatus === "saving"} onClick={() => setJournalRetry(value => value + 1)}>{journalStatus === "error" ? "Retry Save" : "Save Notes & Relationships"}</button>}
         </div>
 
         <div className="mt-4">
           <textarea
             rows={10}
+            aria-label="Campaign notes"
             value={notes}
             disabled={!canEdit}
             onChange={(event) => setNotes(event.target.value)}

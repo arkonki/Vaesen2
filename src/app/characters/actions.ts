@@ -5,6 +5,7 @@ import { getAppSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { characterCreationSchema, validateCharacterAllocation } from "@/lib/character-rules";
 import { z } from "zod";
+import { archetypeTemplateInclude, resolveStartingEquipment, startingTalentsFor } from "@/lib/archetype-template";
 
 type ConditionMap = Record<string, boolean>;
 
@@ -69,17 +70,21 @@ export async function createPlayerCharacter(input: unknown) {
   const data = characterCreationSchema.parse(input);
 
   // Extract relations
-  const { attributes, skills, equipment, talentId, ...baseChar } = data;
+  const { attributes, skills, equipment, equipmentChoices, talentId, ...baseChar } = data;
 
   // DB Transaction to ensure atomicity
   const character = await prisma.$transaction(async (tx) => {
-    const archetype = await tx.archetype.findUniqueOrThrow({ where: { id: data.archetypeId } });
+    const archetype = await tx.archetype.findUniqueOrThrow({ where: { id: data.archetypeId }, include: archetypeTemplateInclude });
     validateCharacterAllocation(data, archetype);
     const talent = await tx.talent.findUniqueOrThrow({ where: { id: data.talentId } });
-    if (talent.type !== "GENERAL" && talent.archetypeId !== archetype.id) {
+    if (!startingTalentsFor(archetype, [talent]).length) {
       throw new Error("This talent is not available to your archetype");
     }
-    const itemIds = Array.from(new Set(equipment.map((item) => item.id)));
+    const inventory = archetype.equipmentGroups.length
+      ? resolveStartingEquipment(archetype, equipmentChoices)
+      : Array.from(new Set(equipment.map(item => item.id))).map(itemId => ({ itemId, quantity: 1 }));
+    if (!archetype.equipmentGroups.length && Object.keys(equipmentChoices).length) throw new Error("Starting equipment has changed. Review your equipment choices.");
+    const itemIds = inventory.map(entry => entry.itemId);
     const items = await tx.item.findMany({ where: { id: { in: itemIds }, type: { not: "MAGIC" } } });
     if (items.length !== itemIds.length) throw new Error("Invalid starting equipment selection");
 
@@ -94,6 +99,7 @@ export async function createPlayerCharacter(input: unknown) {
         trauma: baseChar.trauma || "",
         darkSecret: baseChar.darkSecret || "",
         memento: baseChar.memento || "",
+        relationships: baseChar.relationships,
         resources: baseChar.resources || 0,
         equipment: items.map(({ id, name, type }) => ({ id, name, type })),
         talents: talentId ? [talentId] : [], // JSON array
@@ -102,7 +108,7 @@ export async function createPlayerCharacter(input: unknown) {
 
     if (items.length) {
       await tx.characterInventory.createMany({
-        data: items.map((item) => ({ characterId: char.id, itemId: item.id, quantity: 1 })),
+        data: inventory.map(entry => ({ characterId: char.id, ...entry })),
       });
     }
 

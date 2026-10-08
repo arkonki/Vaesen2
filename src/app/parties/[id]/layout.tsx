@@ -14,12 +14,12 @@ export default async function PartyLayout({
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-[var(--ledger-paper)] text-[var(--ledger-ink)]">
-      <aside className="w-full lg:w-64 lg:shrink-0 border-b lg:border-b-0 lg:border-r border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] backdrop-blur-sm lg:sticky lg:top-24 lg:h-[calc(100vh-6rem)] py-8 px-4">
-        <div className="mb-8">
+      <aside className="w-full lg:w-56 lg:shrink-0 border-b lg:border-b-0 lg:border-r border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] lg:sticky lg:top-28 lg:h-[calc(100vh-7rem)] py-4 px-4">
+        <div className="mb-3">
           <Link href="/parties" className="text-[var(--ledger-ink-soft)] hover:text-[var(--ledger-ink)] text-sm flex items-center gap-2 mb-4">
             ← Back to Parties
           </Link>
-          <h2 className="text-xl font-bold text-[var(--ledger-ink)] truncate">{party.name}</h2>
+          <h2 className="text-xl font-bold text-[var(--ledger-ink)] break-words">{party.name}</h2>
           <p className="text-xs text-[var(--ledger-ink-soft)] mt-1 uppercase tracking-widest font-semibold">
             {isAdmin ? "Administrator View" : isGM ? "Game Master View" : "Player View"}
           </p>

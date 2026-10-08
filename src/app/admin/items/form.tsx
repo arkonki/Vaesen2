@@ -10,10 +10,12 @@ import { ItemType } from "@prisma/client";
 export default function ItemForm({ item }: { item?: Item | null }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [type, setType] = useState<ItemType>(item?.type || "GEAR");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setSaveError("");
     setLoading(true);
     const formData = new FormData(e.currentTarget);
     const data = {
@@ -35,23 +37,23 @@ export default function ItemForm({ item }: { item?: Item | null }) {
       }
       router.push("/admin/items");
     } catch (error) {
-      console.error(error);
-      alert("Error saving item");
+      setSaveError(error instanceof Error ? error.message : "This entry could not be saved. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-xl">
+    <form onSubmit={handleSubmit} aria-busy={loading} className="space-y-4 max-w-xl">
+      {saveError && <p role="alert" className="ledger-status">{saveError}</p>}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Name</label>
-          <input required type="text" name="name" defaultValue={item?.name} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
+          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-items-form-tsx-0">Name</label>
+          <input id="field-items-form-tsx-0" required type="text" name="name" defaultValue={item?.name} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Type</label>
-          <select
+          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-items-form-tsx-1">Type</label>
+          <select id="field-items-form-tsx-1"
             name="type"
             value={type}
             onChange={(e) => setType(e.target.value as ItemType)}
@@ -67,28 +69,28 @@ export default function ItemForm({ item }: { item?: Item | null }) {
 
       <div className="grid grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Bonus</label>
-          <input required type="number" name="bonus" defaultValue={item?.bonus ?? 0} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
+          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-items-form-tsx-2">Bonus</label>
+          <input id="field-items-form-tsx-2" required type="number" name="bonus" defaultValue={item?.bonus ?? 0} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Availability</label>
-          <input required type="number" name="availability" defaultValue={item?.availability ?? 0} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
+          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-items-form-tsx-3">Availability</label>
+          <input id="field-items-form-tsx-3" required type="number" name="availability" defaultValue={item?.availability ?? 0} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Skill</label>
-          <input type="text" name="skill" defaultValue={item?.skill ?? ""} placeholder="e.g. Close Combat" className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
+          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-items-form-tsx-4">Skill</label>
+          <input id="field-items-form-tsx-4" type="text" name="skill" defaultValue={item?.skill ?? ""} placeholder="e.g. Close Combat" className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
         </div>
       </div>
 
       {type === "WEAPON" && (
         <div className="grid grid-cols-2 gap-4 p-4 border border-[var(--ledger-accent)]/65 bg-[rgba(127,48,40,0.12)] rounded-lg">
           <div>
-            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Damage</label>
-            <input required type="number" name="damage" defaultValue={item?.damage ?? 1} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
+            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-items-form-tsx-5">Damage</label>
+            <input id="field-items-form-tsx-5" required type="number" name="damage" defaultValue={item?.damage ?? 1} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Range</label>
-            <select name="range" defaultValue={item?.range || "Close"} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65">
+            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-items-form-tsx-6">Range</label>
+            <select id="field-items-form-tsx-6" name="range" defaultValue={item?.range || "Close"} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65">
               <option value="Close">Close</option>
               <option value="Near">Near</option>
               <option value="Far">Far</option>
@@ -99,8 +101,8 @@ export default function ItemForm({ item }: { item?: Item | null }) {
       )}
 
       <div>
-        <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Description</label>
-        <textarea rows={3} name="description" defaultValue={item?.description ?? ""} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
+        <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-items-form-tsx-7">Description</label>
+        <textarea id="field-items-form-tsx-7" rows={3} name="description" defaultValue={item?.description ?? ""} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
       </div>
 
       <div className="flex justify-end gap-3 mt-6">

@@ -1,79 +1,39 @@
-import type { Archetype } from "@prisma/client";
 import type { WizardStepProps } from "./wizard";
+import { defaultEquipmentChoices, type ArchetypeTemplate } from "@/lib/archetype-template";
 
-export default function Step1Archetype({ data, update, archetypes, onNext }: Omit<WizardStepProps, "onPrev"> & { archetypes: Archetype[] }) {
-  const handleSelect = (archId: string) => {
-    const archetype = archetypes.find((a) => a.id === archId);
-    if (!archetype) return;
-
+export default function Step1Archetype({ data, update, archetypes, onNext }: Omit<WizardStepProps, "onPrev"> & { archetypes: ArchetypeTemplate[] }) {
+  const selected = archetypes.find(archetype => archetype.id === data.archetypeId);
+  function choose(archetype: ArchetypeTemplate) {
+    if (archetype.id === data.archetypeId) return;
     update({
-      archetypeId: archetype.id,
-      mainAttribute: archetype.mainAttribute,
-      mainSkill: archetype.mainSkill,
-      minResources: archetype.startingResourcesMin,
-      maxResources: archetype.startingResourcesMax,
-      resources: archetype.startingResourcesMin, // Reset resources to min when switching
+      archetypeId: archetype.id, mainAttribute: archetype.mainAttribute, mainSkill: archetype.mainSkill,
+      minResources: archetype.startingResourcesMin, maxResources: archetype.startingResourcesMax,
+      resources: archetype.startingResourcesMin, equipmentChoices: defaultEquipmentChoices(archetype),
     });
-  };
-
-  const isValid = data.name.trim().length > 0 && data.archetypeId !== "";
-
-  return (
-    <div className="space-y-8 animate-in fade-in flex flex-col h-full">
-      <div>
-        <h2 className="text-2xl font-bold text-[var(--ledger-ink)] mb-2">Who are you?</h2>
-        <p className="text-[var(--ledger-ink-soft)]">Every hunter has a past, embodied by their Archetype.</p>
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-2">Character Name</label>
-          <input
-            type="text"
-            value={data.name}
-            onChange={e => update({ name: e.target.value })}
-            placeholder="e.g. Linus"
-            className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-4 py-3 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65 transition-colors"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-2">Select Archetype</label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {archetypes.map((arch) => {
-              const selected = data.archetypeId === arch.id;
-              return (
-                 <button
-                   key={arch.id}
-                   onClick={() => handleSelect(arch.id)}
-                   className={`text-left p-4 rounded-lg border transition-all ${
-                     selected
-                      ? 'bg-[rgba(127,48,40,0.12)] border-[var(--ledger-accent)]/65 shadow-[0_0_15px_rgba(99,102,241,0.2)]'
-                      : 'bg-[var(--ledger-paper)] border-[var(--ledger-line)]/55 hover:border-[var(--ledger-line)]/55'
-                   }`}
-                 >
-                   <h3 className={`font-bold ${selected ? 'text-[var(--ledger-ink)]' : 'text-[var(--ledger-ink)]'} text-lg mb-1`}>{arch.name}</h3>
-                   <div className="text-xs text-[var(--ledger-ink-soft)] space-y-1">
-                     <p><span className="text-[var(--ledger-ink-soft)]">Main Attribute:</span> <span className="uppercase">{arch.mainAttribute}</span></p>
-                     <p><span className="text-[var(--ledger-ink-soft)]">Main Skill:</span> {arch.mainSkill}</p>
-                     <p><span className="text-[var(--ledger-ink-soft)]">Resources:</span> {arch.startingResourcesMin} - {arch.startingResourcesMax}</p>
-                   </div>
-                 </button>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-8 flex justify-end flex-grow items-end border-t border-[var(--ledger-line)]/55 pt-6">
-        <button
-          disabled={!isValid}
-          onClick={onNext}
-          className="bg-[rgba(127,48,40,0.12)] hover:bg-[rgba(127,48,40,0.12)] disabled:opacity-50 disabled:cursor-not-allowed text-[var(--ledger-ink)] px-8 py-3 rounded-md font-bold transition-all"
-        >
-          Next Step: Age & Letal Experience
-        </button>
-      </div>
+  }
+  return <div className="space-y-6">
+    <div><h2 className="text-2xl font-bold">Choose an Archetype</h2><p className="mt-2">Your archetype is the starting point. Choose it first, then explore its suggested names, background, talents, and equipment.</p></div>
+    <div className="grid gap-3 sm:grid-cols-2">
+      {archetypes.map(archetype => <button type="button" key={archetype.id} aria-pressed={archetype.id === data.archetypeId} onClick={() => choose(archetype)} className={`ledger-panel p-4 text-left ${archetype.id === data.archetypeId ? "bg-[var(--ledger-paper-deep)] border-[var(--ledger-accent)]" : ""}`}>
+        <h3 className="text-xl font-bold">{archetype.name}</h3>
+        <p className="mt-2 text-sm">{archetype.mainAttribute} / {archetype.mainSkill.replace(/([A-Z])/g," $1")}</p>
+        <p className="text-sm">Resources {archetype.startingResourcesMin}-{archetype.startingResourcesMax}</p>
+        {archetype.flavorText && <p className="mt-2 text-sm italic line-clamp-3">{archetype.flavorText}</p>}
+      </button>)}
     </div>
-  )
+    {!archetypes.length && <p className="ledger-status">No archetypes are available. Ask an administrator to add one.</p>}
+    {selected && <article className="ledger-panel p-5 space-y-4">
+      <h3 className="ledger-bar">{selected.name}</h3>
+      {selected.flavorText && <p className="whitespace-pre-wrap italic leading-relaxed">{selected.flavorText}</p>}
+      <dl className="grid gap-3 sm:grid-cols-2">
+        <div><dt className="font-bold">Main Attribute</dt><dd className="capitalize">{selected.mainAttribute}</dd></div>
+        <div><dt className="font-bold">Main Skill</dt><dd className="capitalize">{selected.mainSkill.replace(/([A-Z])/g," $1")}</dd></div>
+        <div><dt className="font-bold">Starting Talents</dt><dd>{selected.startingTalents?.map(entry => entry.talent.name).join(", ") || "Available general and archetype talents"}</dd></div>
+        <div><dt className="font-bold">Resources</dt><dd>{selected.startingResourcesMin}-{selected.startingResourcesMax}</dd></div>
+        <div className="sm:col-span-2"><dt className="font-bold">Equipment</dt><dd>{selected.equipmentGroups?.length ? selected.equipmentGroups.map(group => `${group.options.map(option => option.item.name).join(" or ")}${group.quantity > 1 ? ` (x${group.quantity})` : ""}`).join("; ") : "Choose gear with your GM"}</dd></div>
+      </dl>
+      <p className="text-sm">Name and background suggestions are available in the following steps. You may always write your own.</p>
+    </article>}
+    <div className="flex justify-end border-t border-[var(--ledger-line)] pt-5"><button type="button" disabled={!selected} onClick={onNext} className="ledger-button ledger-button-primary">Next: Age</button></div>
+  </div>;
 }

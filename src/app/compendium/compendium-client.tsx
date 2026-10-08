@@ -1,7 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Archetype, Item, ItemType, NPC, Talent, TalentType, Vaesen } from "@prisma/client";
+import { useMemo } from "react";
+import { useSearchParams } from "next/navigation";
+import PageMasthead from "@/components/page-masthead";
+import { compendiumTab } from "@/lib/ui-flow";
+import { Item, ItemType, NPC, Talent, TalentType, Vaesen } from "@prisma/client";
+import type { ArchetypeTemplate } from "@/lib/archetype-template";
 
 type TabId = "rules" | "items" | "talents" | "archetypes" | "npcs" | "vaesen";
 
@@ -10,7 +14,7 @@ type CompendiumClientProps = {
   canViewGmContent: boolean;
   items: Item[];
   talents: Talent[];
-  archetypes: Archetype[];
+  archetypes: ArchetypeTemplate[];
   npcs: NPC[];
   vaesen: Vaesen[];
 };
@@ -47,7 +51,6 @@ function matchesQuery(values: Array<string | null | undefined>, query: string) {
 }
 
 export default function CompendiumClient({
-  role,
   canViewGmContent,
   items,
   talents,
@@ -72,10 +75,17 @@ export default function CompendiumClient({
     [canViewGmContent]
   );
 
-  const [activeTab, setActiveTab] = useState<TabId>(tabs[0].id);
-  const [query, setQuery] = useState("");
-  const [itemTypeFilter, setItemTypeFilter] = useState<"ALL" | ItemType>("ALL");
-  const [talentTypeFilter, setTalentTypeFilter] = useState<"ALL" | TalentType>("ALL");
+  const params = useSearchParams();
+  const activeTab = compendiumTab(params.get("tab"), canViewGmContent);
+  const query = params.get("q") || "";
+  const itemTypeFilter = ["WEAPON", "ARMOR", "GEAR", "MAGIC"].includes(params.get("type") || "") ? params.get("type") as ItemType : "ALL";
+  const talentTypeFilter = ["GENERAL", "ARCHETYPE"].includes(params.get("talent") || "") ? params.get("talent") as TalentType : "ALL";
+  function updateUrl(key: string, value: string, push = false) {
+    const next = new URLSearchParams(window.location.search);
+    if (!value || value === "ALL") next.delete(key); else next.set(key, value);
+    const url = "/compendium" + (next.size ? "?" + next.toString() : "");
+    if (push) window.history.pushState(null, "", url); else window.history.replaceState(null, "", url);
+  }
 
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -102,7 +112,9 @@ export default function CompendiumClient({
   const filteredArchetypes = useMemo(
     () =>
       archetypes.filter((archetype) =>
-        matchesQuery([archetype.name, archetype.mainAttribute, archetype.mainSkill], normalizedQuery)
+        matchesQuery([archetype.name, archetype.mainAttribute, archetype.mainSkill, archetype.flavorText,
+          ...archetype.firstNameOptions, ...archetype.lastNameOptions, ...archetype.motivationOptions, ...archetype.traumaOptions, ...archetype.darkSecretOptions, ...archetype.relationshipOptions,
+          ...(archetype.startingTalents ?? []).map(entry => entry.talent.name), ...(archetype.equipmentGroups ?? []).flatMap(group => group.options.map(option => option.item.name))], normalizedQuery)
       ),
     [archetypes, normalizedQuery]
   );
@@ -117,63 +129,26 @@ export default function CompendiumClient({
     [vaesen, normalizedQuery]
   );
 
+  const filteredRules = GENERAL_RULES_SECTIONS.filter(section => matchesQuery([section.title,section.body],normalizedQuery));
+  const resultCount = { rules: filteredRules.length, items: filteredItems.length, talents: filteredTalents.length, archetypes: filteredArchetypes.length, npcs: filteredNpcs.length, vaesen: filteredVaesen.length }[activeTab];
+
   return (
     <div className="space-y-6">
-      <header className="rounded-2xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-[var(--ledger-ink)]">Compendium</h1>
-            <p className="mt-2 text-[var(--ledger-ink-soft)]">
-              Searchable rules and world reference for players, game masters, and admins.
-            </p>
-          </div>
-          <span className="rounded-full border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--ledger-ink)]">
-            Role: {role}
-          </span>
-        </div>
+      <PageMasthead title="Compendium" eyebrow="The Society's Library" description="Rules, equipment, and lore at your fingertips. Search a category to find what you need at the table." artwork="library" />
+      <div className="ledger-search-toolbar">
+        <label>Search {tabs.find(tab => tab.id === activeTab)?.label}<input type="search" value={query} onChange={event => updateUrl("q",event.target.value)} placeholder="Name, rule, or keyword..." /></label>
+        {activeTab === "items" && <label>Item type<select value={itemTypeFilter} onChange={event => updateUrl("type",event.target.value)}><option value="ALL">All items</option><option value="WEAPON">Weapons</option><option value="ARMOR">Armor</option><option value="GEAR">Gear</option><option value="MAGIC">Magic</option></select></label>}
+        {activeTab === "talents" && <label>Talent type<select value={talentTypeFilter} onChange={event => updateUrl("talent",event.target.value)}><option value="ALL">All talents</option><option value="GENERAL">General</option><option value="ARCHETYPE">Archetype</option></select></label>}
+        {(query || itemTypeFilter !== "ALL" || talentTypeFilter !== "ALL") && <button type="button" className="ledger-button" onClick={() => {const next = new URLSearchParams(window.location.search); for (const key of ["q","type","talent"]) next.delete(key);window.history.replaceState(null,"","/compendium?"+next.toString());}}>Clear Filters</button>}
+      </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search current category..."
-            className="rounded-md border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none focus:border-[var(--ledger-accent)]/65"
-          />
-
-          {activeTab === "items" ? (
-            <select
-              value={itemTypeFilter}
-              onChange={(event) => setItemTypeFilter(event.target.value as "ALL" | ItemType)}
-              className="rounded-md border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none focus:border-[var(--ledger-accent)]/65"
-            >
-              <option value="ALL">All Item Types</option>
-              <option value="WEAPON">Weapons</option>
-              <option value="ARMOR">Armor</option>
-              <option value="GEAR">Gear</option>
-              <option value="MAGIC">Magic</option>
-            </select>
-          ) : null}
-
-          {activeTab === "talents" ? (
-            <select
-              value={talentTypeFilter}
-              onChange={(event) => setTalentTypeFilter(event.target.value as "ALL" | TalentType)}
-              className="rounded-md border border-[var(--ledger-line)]/55 bg-[var(--ledger-paper)] px-3 py-2 text-sm text-[var(--ledger-ink)] outline-none focus:border-[var(--ledger-accent)]/65"
-            >
-              <option value="ALL">All Talent Types</option>
-              <option value="GENERAL">General</option>
-              <option value="ARCHETYPE">Archetype</option>
-            </select>
-          ) : null}
-        </div>
-      </header>
-
-      <nav className="flex flex-wrap gap-2">
+      <nav className="ledger-tabs" aria-label="Compendium categories">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
-            onClick={() => setActiveTab(tab.id)}
+            aria-pressed={activeTab === tab.id}
+            onClick={() => updateUrl("tab", tab.id, true)}
             className={`rounded-md border px-4 py-2 text-sm font-semibold transition-colors ${
               activeTab === tab.id
                 ? "border-[var(--ledger-accent)]/65 bg-[rgba(127,48,40,0.12)] text-[var(--ledger-accent)]"
@@ -185,10 +160,12 @@ export default function CompendiumClient({
         ))}
       </nav>
 
+      <p role="status" className="ledger-helper-copy">{resultCount} {resultCount === 1 ? "entry" : "entries"}{query ? ` matching "${query}"` : ""}</p>
+      {resultCount === 0 && <p className="ledger-status">No matching entries. Try a different keyword or clear the filters.</p>}
       {activeTab === "rules" ? (
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {GENERAL_RULES_SECTIONS.map((section) => (
-            <article key={section.title} className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
+          {filteredRules.map((section) => (
+            <article key={section.title} className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
               <h2 className="text-lg font-bold text-[var(--ledger-ink)]">{section.title}</h2>
               <p className="mt-2 text-sm leading-relaxed text-[var(--ledger-ink)]">{section.body}</p>
             </article>
@@ -199,7 +176,7 @@ export default function CompendiumClient({
       {activeTab === "items" ? (
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredItems.map((item) => (
-            <article key={item.id} className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
+            <article key={item.id} className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
               <div className="flex items-start justify-between gap-2">
                 <h2 className="text-lg font-bold text-[var(--ledger-ink)]">{item.name}</h2>
                 <span className="rounded-full bg-[var(--ledger-paper-deep)] px-2 py-1 text-xs font-semibold text-[var(--ledger-ink)]">
@@ -223,7 +200,7 @@ export default function CompendiumClient({
       {activeTab === "talents" ? (
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {filteredTalents.map((talent) => (
-            <article key={talent.id} className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
+            <article key={talent.id} className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-lg font-bold text-[var(--ledger-ink)]">{talent.name}</h2>
                 <span className="rounded-full bg-[var(--ledger-paper-deep)] px-2 py-1 text-xs font-semibold text-[var(--ledger-ink)]">
@@ -240,13 +217,23 @@ export default function CompendiumClient({
       {activeTab === "archetypes" ? (
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredArchetypes.map((archetype) => (
-            <article key={archetype.id} className="rounded-xl border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
+            <article key={archetype.id} className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
               <h2 className="text-lg font-bold text-[var(--ledger-ink)]">{archetype.name}</h2>
+              {archetype.flavorText && <p className="mt-3 italic whitespace-pre-wrap leading-relaxed">{archetype.flavorText}</p>}
               <p className="mt-2 text-sm text-[var(--ledger-ink)]">Main Attribute: {archetype.mainAttribute}</p>
               <p className="text-sm text-[var(--ledger-ink)]">Main Skill: {archetype.mainSkill}</p>
               <p className="mt-2 text-xs text-[var(--ledger-ink-soft)]">
                 Starting resources: {archetype.startingResourcesMin} - {archetype.startingResourcesMax}
               </p>
+              <p className="mt-2 text-sm">Talents: {archetype.startingTalents?.map(entry => entry.talent.name).join(", ") || "No starting list configured"}</p>
+              <p className="mt-2 text-sm">Equipment: {archetype.equipmentGroups?.map(group => `${group.options.map(option => option.item.name).join(" or ")} (x${group.quantity})`).join("; ") || "No equipment template configured"}</p>
+              <details className="mt-4 border-t border-[var(--ledger-line)] pt-3"><summary className="cursor-pointer font-bold">Character Suggestions</summary>
+                <dl className="mt-3 space-y-3">{([
+                  ["First Names", archetype.firstNameOptions], ["Last Names", archetype.lastNameOptions],
+                  ["Motivations", archetype.motivationOptions], ["Traumas", archetype.traumaOptions],
+                  ["Dark Secrets", archetype.darkSecretOptions], ["Relationships", archetype.relationshipOptions],
+                ] as [string, string[]][]).map(([label, options]) => <div key={label}><dt className="font-bold">{label}</dt><dd>{options.length ? options.join("; ") : "Write your own"}</dd></div>)}</dl>
+              </details>
             </article>
           ))}
           {filteredArchetypes.length === 0 ? <p className="text-sm text-[var(--ledger-ink-soft)]">No archetypes match this search.</p> : null}
@@ -256,7 +243,7 @@ export default function CompendiumClient({
       {activeTab === "npcs" && canViewGmContent ? (
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {filteredNpcs.map((npc) => (
-            <article key={npc.id} className="rounded-xl border border-[var(--ledger-accent)]/65 bg-[var(--ledger-surface-strong)] p-5">
+            <article key={npc.id} className="rounded-sm border border-[var(--ledger-accent)]/65 bg-[var(--ledger-surface-strong)] p-5">
               <h2 className="text-lg font-bold text-[var(--ledger-ink)]">{npc.name}</h2>
               <p className="mt-2 text-sm text-[var(--ledger-ink)]">{npc.description}</p>
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--ledger-ink-soft)]">
@@ -276,7 +263,7 @@ export default function CompendiumClient({
       {activeTab === "vaesen" && canViewGmContent ? (
         <section className="grid grid-cols-1 gap-4">
           {filteredVaesen.map((entry) => (
-            <article key={entry.id} className="rounded-xl border border-red-700/30 bg-[var(--ledger-surface-strong)] p-5">
+            <article key={entry.id} className="rounded-sm border border-red-700/30 bg-[var(--ledger-surface-strong)] p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-2xl font-bold text-[var(--ledger-ink)]">{entry.name}</h2>
                 <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-semibold text-[var(--ledger-danger)]">

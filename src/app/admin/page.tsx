@@ -1,38 +1,13 @@
+import Link from "next/link";
+import PageMasthead from "@/components/page-masthead";
+const sections = [
+  ["users", "Users & Access", "Create accounts, assign roles, and manage access to the Society."],
+  ["archetypes", "Archetypes", "Define hunter archetypes and their starting attributes, skills, and resources."],
+  ["items", "Items & Gear", "Manage weapons, armor, equipment, and their game statistics."],
+  ["talents", "Talents", "Maintain general abilities and archetype-specific talents."],
+  ["npcs", "NPCs", "Keep the GM-only cast of allies, rivals, and strangers."],
+  ["vaesen", "Vaesen", "Maintain GM-only creatures, powers, rituals, and secrets."],
+];
 export default function AdminDashboardPage() {
-  return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-[var(--ledger-ink)] tracking-tight">Admin Dashboard</h1>
-      <p className="text-[var(--ledger-ink-soft)] max-w-2xl">
-        Manage core game content and the society&apos;s user accounts from one place. Content updates affect
-        character creation, compendium data, and party campaign play immediately.
-      </p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-lg p-6 hover:border-[var(--ledger-accent)]/65 transition-colors">
-          <h3 className="text-lg font-medium text-[var(--ledger-ink)] mb-2">Archetypes & Talents</h3>
-          <p className="text-sm text-[var(--ledger-ink-soft)]">
-            Define player classes, their starting main attributes, skills, and special abilities.
-          </p>
-        </div>
-        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-lg p-6 hover:border-[var(--ledger-accent)]/65 transition-colors">
-          <h3 className="text-lg font-medium text-[var(--ledger-ink)] mb-2">Items & Gear</h3>
-          <p className="text-sm text-[var(--ledger-ink-soft)]">
-            Manage weapons, armor, and general gear with dynamic stats.
-          </p>
-        </div>
-        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-lg p-6 hover:border-[var(--ledger-accent)]/65 transition-colors">
-          <h3 className="text-lg font-medium text-[var(--ledger-ink)] mb-2">Adversaries</h3>
-          <p className="text-sm text-[var(--ledger-ink-soft)]">
-            Create detailed NPCs and horrifying Vaesen with complex JSON-based powers and conditions.
-          </p>
-        </div>
-        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-lg p-6 hover:border-[var(--ledger-accent)]/65 transition-colors">
-          <h3 className="text-lg font-medium text-[var(--ledger-ink)] mb-2">Users & Access</h3>
-          <p className="text-sm text-[var(--ledger-ink-soft)]">
-            Create user accounts, assign roles, and rotate passwords for players, GMs, and admins.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+  return <div className="space-y-6"><PageMasthead title="The Keeper's Desk" eyebrow="Administration" description="Maintain the Society's accounts and reference library. Content changes are available to character creation and the Compendium immediately." artwork="library" /><div className="grid gap-4 sm:grid-cols-2">{sections.map(([path,title,description]) => <Link key={path} href={"/admin/"+path} className="ledger-panel p-5 hover:bg-[var(--ledger-paper-deep)]"><h2 className="text-xl font-bold">{title}</h2><p className="mt-2 leading-relaxed">{description}</p><p className="mt-3 font-bold text-[var(--ledger-accent)]">Manage {title}</p></Link>)}</div></div>;
 }

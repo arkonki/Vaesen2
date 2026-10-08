@@ -22,6 +22,8 @@ export const characterCreationSchema = z.object({
   trauma: z.string().trim().min(1).max(10000),
   darkSecret: z.string().trim().min(1).max(10000),
   memento: z.string().trim().max(1000).optional(),
+  relationships: z.string().trim().max(50000).default(""),
+  equipmentChoices: z.record(z.string().uuid(), z.string().uuid()).default({}),
   equipment: z.array(z.object({ id: z.string().uuid() })).max(50),
 });
 

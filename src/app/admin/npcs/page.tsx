@@ -1,7 +1,9 @@
 import { requireAdminSession } from "@/lib/access";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
-import { Plus, Edit2, Trash2 } from "lucide-react";
+import { Plus, Edit2 } from "lucide-react";
+import ConfirmDelete from "@/components/confirm-delete";
+import AdminSearch from "@/components/admin-search";
 import NPCForm from "./form";
 import { deleteNPC } from "@/app/admin/actions";
 import { revalidatePath } from "next/cache";
@@ -9,15 +11,15 @@ import { revalidatePath } from "next/cache";
 export default async function NPCsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ action?: string; id?: string }>;
+  searchParams: Promise<{ action?: string; id?: string; q?: string }>;
 }) {
   await requireAdminSession();
   const query = await searchParams;
-  const npcs = await prisma.nPC.findMany();
+  const npcs = await prisma.nPC.findMany({ where: query.q ? { name: { contains: query.q.trim(), mode: "insensitive" } } : {}, orderBy: { name: "asc" } });
 
   const isCreating = query.action === "create";
   const editingId = query.id;
-  const editingNPC = editingId ? npcs.find(n => n.id === editingId) : null;
+  const editingNPC = editingId ? await prisma.nPC.findUnique({ where: { id: editingId } }) : null;
 
   async function handleDelete(data: FormData) {
     "use server";
@@ -38,6 +40,8 @@ export default async function NPCsPage({
         )}
       </div>
 
+      {!isCreating && !editingId && <AdminSearch query={query.q} count={npcs.length} />}
+
       {(isCreating || editingNPC) ? (
         <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-lg p-6">
           <h2 className="text-xl font-bold text-[var(--ledger-ink)] mb-4">
@@ -46,7 +50,7 @@ export default async function NPCsPage({
           <NPCForm npc={editingNPC} />
         </div>
       ) : (
-        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-lg overflow-hidden">
+        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-sm ledger-admin-table">
           <table className="w-full text-left text-sm text-[var(--ledger-ink)]">
             <thead className="bg-[var(--ledger-paper)] text-[var(--ledger-ink-soft)]">
               <tr>
@@ -63,15 +67,10 @@ export default async function NPCsPage({
                   <td className="px-6 py-4">{n.physicalToughness}</td>
                   <td className="px-6 py-4">{n.mentalToughness}</td>
                   <td className="px-6 py-4 text-right flex justify-end gap-3">
-                    <Link href={`?id=${n.id}`} className="text-[var(--ledger-accent)] hover:text-[var(--ledger-accent)]">
-                      <Edit2 className="w-4 h-4" />
+                    <Link href={`?id=${n.id}`} aria-label={`Edit ${n.name}`} className="ledger-button text-[var(--ledger-accent)]">
+                      <Edit2 className="w-4 h-4" aria-hidden="true" /><span>Edit</span>
                     </Link>
-                    <form action={handleDelete}>
-                      <input type="hidden" name="id" value={n.id} />
-                      <button type="submit" className="text-[var(--ledger-danger)] hover:text-[var(--ledger-danger)]">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </form>
+                    <ConfirmDelete id={n.id} name={n.name} action={handleDelete} />
                   </td>
                 </tr>
               ))}

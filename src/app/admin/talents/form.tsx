@@ -10,10 +10,12 @@ import { TalentType } from "@prisma/client";
 export default function TalentForm({ talent, archetypes }: { talent?: Talent | null, archetypes: Archetype[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [type, setType] = useState<TalentType>(talent?.type || "GENERAL");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setSaveError("");
     setLoading(true);
     const formData = new FormData(e.currentTarget);
     const data = {
@@ -31,24 +33,24 @@ export default function TalentForm({ talent, archetypes }: { talent?: Talent | n
       }
       router.push("/admin/talents");
     } catch (error) {
-      console.error(error);
-      alert("Error saving talent");
+      setSaveError(error instanceof Error ? error.message : "This entry could not be saved. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-xl">
+    <form onSubmit={handleSubmit} aria-busy={loading} className="space-y-4 max-w-xl">
+      {saveError && <p role="alert" className="ledger-status">{saveError}</p>}
       <div>
-        <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Name</label>
-        <input required type="text" name="name" defaultValue={talent?.name} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
+        <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-talents-form-tsx-0">Name</label>
+        <input id="field-talents-form-tsx-0" required type="text" name="name" defaultValue={talent?.name} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Type</label>
-          <select
+          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-talents-form-tsx-1">Type</label>
+          <select id="field-talents-form-tsx-1"
             name="type"
             value={type}
             onChange={(e) => setType(e.target.value as TalentType)}
@@ -59,8 +61,8 @@ export default function TalentForm({ talent, archetypes }: { talent?: Talent | n
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Archetype requirement</label>
-          <select
+          <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-talents-form-tsx-2">Archetype requirement</label>
+          <select id="field-talents-form-tsx-2"
             name="archetypeId"
             defaultValue={talent?.archetypeId || ""}
             disabled={type !== "ARCHETYPE"}
@@ -75,8 +77,8 @@ export default function TalentForm({ talent, archetypes }: { talent?: Talent | n
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1">Description</label>
-        <textarea required rows={4} name="description" defaultValue={talent?.description} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
+        <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-talents-form-tsx-3">Description</label>
+        <textarea id="field-talents-form-tsx-3" required rows={4} name="description" defaultValue={talent?.description} className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65" />
       </div>
 
       <div className="flex justify-end gap-3 mt-6">

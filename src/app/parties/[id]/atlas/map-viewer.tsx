@@ -100,7 +100,7 @@ export default function MapViewer({ partyId, initialMaps, isGM }: { partyId: str
       </div>
 
       {isAddingMap && (
-        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-xl p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-sm p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
           <h3 className="text-lg font-bold text-[var(--ledger-ink)] mb-4">Add New Map</h3>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <input
@@ -127,7 +127,7 @@ export default function MapViewer({ partyId, initialMaps, isGM }: { partyId: str
 
       {/* Map Display */}
       <div className={cn(
-        "flex-1 relative bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-2xl overflow-hidden group shadow-2xl transition-all duration-500",
+        "flex-1 relative bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-sm overflow-hidden group shadow-2xl transition-all duration-500",
         isZoomed ? "fixed inset-8 z-[100] shadow-[0_0_100px_rgba(0,0,0,0.8)]" : ""
       )}>
         {activeMap ? (
