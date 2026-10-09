@@ -1,3 +1,4 @@
+import { canCarryItem } from "./equipment";
 import type { Item, Talent } from "@prisma/client";
 import { z } from "zod";
 import { ATTRIBUTE_KEYS, SKILL_KEYS, AGE_ALLOWANCES, normalizeRuleKey } from "./character-rules";
@@ -105,9 +106,9 @@ export function restoreCharacterDraft(raw: string, archetypes: ArchetypeTemplate
     talentId: startingTalentsFor(arch, talents).some(t => t.id === saved.data.talentId) ? saved.data.talentId : "",
     equipmentChoices: Object.fromEntries((arch?.equipmentGroups ?? []).flatMap(group => {
       const itemId = saved.data.equipmentChoices[group.id] || (group.options.length === 1 ? group.options[0].itemId : "");
-      return group.options.some(option => option.itemId === itemId && option.item.type !== "MAGIC") ? [[group.id, itemId]] : [];
+      return group.options.some(option => option.itemId === itemId && canCarryItem(option.item)) ? [[group.id, itemId]] : [];
     })),
-    equipment: items.filter(item => item.type !== "MAGIC" && saved.data.equipment.some(e => e.id === item.id)),
+    equipment: items.filter(item => item.type !== "MAGIC" && canCarryItem(item) && saved.data.equipment.some(e => e.id === item.id)),
   };
   const migratedStep = saved.version === 1 && saved.step >= 3 ? saved.step + 1 : saved.step;
   return { data, step: Math.min(migratedStep, firstIncompleteStep(data, arch)) };

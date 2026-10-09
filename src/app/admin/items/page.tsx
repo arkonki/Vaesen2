@@ -5,21 +5,23 @@ import { Plus, Edit2 } from "lucide-react";
 import ConfirmDelete from "@/components/confirm-delete";
 import AdminSearch from "@/components/admin-search";
 import ItemForm from "./form";
+import { equipmentInclude, EQUIPMENT_TYPES, typeName } from "@/lib/equipment";
 import { deleteItem } from "@/app/admin/actions";
 import { revalidatePath } from "next/cache";
 
 export default async function ItemsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ action?: string; id?: string; q?: string }>;
+  searchParams: Promise<{ action?: string; id?: string; q?: string; type?: string; warning?: string }>;
 }) {
   await requireAdminSession();
   const query = await searchParams;
-  const items = await prisma.item.findMany({ where: query.q ? { name: { contains: query.q.trim(), mode: "insensitive" } } : {}, orderBy: { name: "asc" } });
+  const filter = EQUIPMENT_TYPES.find(type => type === query.type);
+  const items = await prisma.item.findMany({ where: { ...(query.q ? { name: { contains: query.q.trim(), mode: "insensitive" } } : {}), ...(filter ? { type: filter } : {}) }, include: equipmentInclude, orderBy: { name: "asc" } });
 
   const isCreating = query.action === "create";
   const editingId = query.id;
-  const editingItem = editingId ? await prisma.item.findUnique({ where: { id: editingId } }) : null;
+  const editingItem = editingId ? await prisma.item.findUnique({ where: { id: editingId }, include: equipmentInclude }) : null;
 
   async function handleDelete(data: FormData) {
     "use server";
@@ -40,7 +42,8 @@ export default async function ItemsPage({
         )}
       </div>
 
-      {!isCreating && !editingId && <AdminSearch query={query.q} count={items.length} />}
+      {query.warning === "duplicate" && <p className="ledger-status" role="status">Saved. Another catalogue entry has the same name; compare sources before using it.</p>}
+      {!isCreating && !editingId && <><AdminSearch query={query.q} count={items.length} /><nav className="flex flex-wrap gap-2" aria-label="Equipment categories"><Link className="ledger-button" href="/admin/items">All</Link>{EQUIPMENT_TYPES.map(type => <Link key={type} className="ledger-button" href={`?type=${type}${query.q ? `&q=${encodeURIComponent(query.q)}` : ""}`}>{typeName(type)}</Link>)}</nav></>}
 
       {(isCreating || editingItem) ? (
         <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-lg p-6">
@@ -64,14 +67,14 @@ export default async function ItemsPage({
             <tbody className="divide-y divide-neutral-800">
               {items.map((item) => (
                 <tr key={item.id} className="hover:bg-[var(--ledger-paper-deep)] transition-colors">
-                  <td className="px-6 py-4 font-medium text-[var(--ledger-ink)]">{item.name}</td>
+                  <td className="px-6 py-4 font-medium text-[var(--ledger-ink)]">{item.name}{item.sourcePage && <span className="block text-xs">Core/reference p. {item.sourcePage}</span>}{item.usages.length === 0 && <span className="block text-xs">Legacy: usage review needed</span>}</td>
                   <td className="px-6 py-4">
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-[var(--ledger-paper-deep)] text-[var(--ledger-ink)]">
-                      {item.type}
+                      {typeName(item.type)}
                     </span>
                   </td>
-                  <td className="px-6 py-4">+{item.bonus}</td>
-                  <td className="px-6 py-4">{item.availability}</td>
+                  <td className="px-6 py-4">{item.type === "ARMOR" || item.type === "COVER" ? `Protection ${item.protection ?? "?"}` : `${item.bonus >= 0 ? "+" : ""}${item.bonus}`}</td>
+                  <td className="px-6 py-4">{item.availability || "Not purchased"}</td>
                   <td className="px-6 py-4 text-right flex justify-end gap-3">
                     <Link href={`?id=${item.id}`} aria-label={`Edit ${item.name}`} className="ledger-button text-[var(--ledger-accent)]">
                       <Edit2 className="w-4 h-4" aria-hidden="true" /><span>Edit</span>

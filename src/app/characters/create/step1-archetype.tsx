@@ -16,6 +16,7 @@ export default function Step1Archetype({ data, update, archetypes, onNext }: Omi
     <div className="grid gap-3 sm:grid-cols-2">
       {archetypes.map(archetype => <button type="button" key={archetype.id} aria-pressed={archetype.id === data.archetypeId} onClick={() => choose(archetype)} className={`ledger-panel p-4 text-left ${archetype.id === data.archetypeId ? "bg-[var(--ledger-paper-deep)] border-[var(--ledger-accent)]" : ""}`}>
         <h3 className="text-xl font-bold">{archetype.name}</h3>
+        {archetype.bookKey && <p className="text-xs mt-1">Core book / p. {archetype.sourcePage}</p>}
         <p className="mt-2 text-sm">{archetype.mainAttribute} / {archetype.mainSkill.replace(/([A-Z])/g," $1")}</p>
         <p className="text-sm">Resources {archetype.startingResourcesMin}-{archetype.startingResourcesMax}</p>
         {archetype.flavorText && <p className="mt-2 text-sm italic line-clamp-3">{archetype.flavorText}</p>}

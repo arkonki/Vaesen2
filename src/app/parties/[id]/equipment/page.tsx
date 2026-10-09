@@ -1,3 +1,4 @@
+import { CARRIED_TYPES } from "@/lib/equipment";
 import prisma from "@/lib/prisma";
 import { getPartyAccess } from "@/lib/access";
 import StashManager from "./stash-manager";
@@ -16,6 +17,7 @@ export default async function EquipmentPage({ params }: { params: Promise<{ id: 
       orderBy: [{ item: { type: "asc" } }, { item: { name: "asc" } }],
     }),
     prisma.item.findMany({
+      where: { type: { in: [...CARRIED_TYPES] } },
       orderBy: [{ type: "asc" }, { name: "asc" }],
     }),
   ]);

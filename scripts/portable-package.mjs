@@ -32,11 +32,16 @@ export async function packagePortable(root) {
   for (const name of ["client.js", "seed.js"]) {
     await cp(path.join(root, "prisma", name), path.join(destination, "prisma", name));
   }
+  await cp(path.join(root, "prisma/content"), path.join(destination, "prisma/content"), options);
   for (const [source, target] of [
     ["scripts/start-portable.mjs", "start.mjs"],
     ["scripts/check-portable.mjs", "check.mjs"],
     ["scripts/portable-env.mjs", "portable-env.mjs"],
+    ["scripts/seed-academic.mjs", "scripts/seed-academic.mjs"],
+    ["scripts/import-equipment.mjs", "scripts/import-equipment.mjs"],
+    ["scripts/import-core-reference.mjs", "scripts/import-core-reference.mjs"],
   ]) {
+    await mkdir(path.dirname(path.join(destination, target)), { recursive: true });
     await cp(path.join(root, source), path.join(destination, target));
   }
   await cp(path.join(root, "deploy/freebsd.env.example"), path.join(destination, ".env.example"));

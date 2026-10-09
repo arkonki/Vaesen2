@@ -1,3 +1,4 @@
+import { CARRIED_TYPES } from "./equipment";
 import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getPartyAccess } from "@/lib/access";
@@ -237,6 +238,7 @@ export async function loadCastleView(id: string): Promise<CastleView> {
     },
     items: access.isGM
       ? await prisma.item.findMany({
+          where: { type: { in: [...CARRIED_TYPES] } },
           select: {
             id: true,
             name: true,

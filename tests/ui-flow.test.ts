@@ -3,9 +3,9 @@ import type { Archetype, Item, Talent } from "@prisma/client";
 import { safeCallbackPath, compendiumTab } from "../src/lib/ui-flow";
 import { firstIncompleteStep, initialState, restoreCharacterDraft, type WizardState } from "../src/lib/character-draft";
 
-const archetype: Archetype = { id: "00000000-0000-4000-8000-000000000001", name: "Academic", flavorText: "", firstNameOptions: [], lastNameOptions: [], motivationOptions: [], traumaOptions: [], darkSecretOptions: [], relationshipOptions: [], mainAttribute: "logic", mainSkill: "learning", startingResourcesMin: 1, startingResourcesMax: 3 };
-const talent: Talent = { id: "00000000-0000-4000-8000-000000000002", name: "Research", description: "Research", type: "GENERAL", archetypeId: null };
-const item: Item = { id: "00000000-0000-4000-8000-000000000003", name: "Notebook", description: null, bonus: 1, availability: 1, type: "GEAR", damage: null, range: null, skill: "learning" };
+const archetype: Archetype = { bookKey:null,sourceBook:null,sourcePage:null, id: "00000000-0000-4000-8000-000000000001", name: "Academic", flavorText: "", firstNameOptions: [], lastNameOptions: [], motivationOptions: [], traumaOptions: [], darkSecretOptions: [], relationshipOptions: [], mainAttribute: "logic", mainSkill: "learning", startingResourcesMin: 1, startingResourcesMax: 3 };
+const talent: Talent = { bookKey:null, id: "00000000-0000-4000-8000-000000000002", name: "Research", description: "Research", type: "GENERAL", archetypeId: null };
+const item: Item = { bookKey:null, sourceBook:null, sourcePage:null, protection:null, agilityPenalty:null, doses:null, toxicity:null, id: "00000000-0000-4000-8000-000000000003", name: "Notebook", description: null, bonus: 1, availability: 1, type: "GEAR", damage: null, range: null, skill: "learning" };
 const complete: WizardState = { ...initialState, name: "Astrid", archetypeId: archetype.id, mainAttribute: "logic", mainSkill: "learning", minResources: 1, maxResources: 3, ageGroup: "YOUNG", attributeAllowance: 15, skillAllowance: 10, attributes: { physique: 4, precision: 3, logic: 4, empathy: 4 }, skills: { ...initialState.skills, agility: 2, stealth: 2, learning: 3, observation: 2, investigation: 1 }, resources: 1, talentId: talent.id, motivation: "Truth", trauma: "The lake", darkSecret: "A promise", equipment: [item] };
 const serialized = (data = complete, step = 8) => JSON.stringify({ version: 2, data, step });
 

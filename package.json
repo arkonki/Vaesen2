@@ -9,8 +9,11 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "prisma db seed",
+    "db:content:academic": "node scripts/seed-academic.mjs",
+    "db:content:equipment": "node scripts/import-equipment.mjs",
+    "db:content:core": "node scripts/import-core-reference.mjs",
     "test": "vitest run",
-    "test:integration": "vitest run tests/campaign.integration.test.ts tests/castle.integration.test.ts tests/postgres-client.test.ts",
+    "test:integration": "vitest run tests/campaign.integration.test.ts tests/castle.integration.test.ts tests/postgres-client.test.ts tests/archetypes.integration.test.ts tests/advancement.integration.test.ts tests/equipment.integration.test.ts tests/skill-reference.integration.test.ts tests/core-reference.integration.test.ts tests/academic-content.integration.test.ts",
     "test:migration": "node tests/legacy-migration.mjs",
     "typecheck": "tsc --noEmit",
     "test:http": "node tests/http-smoke.mjs"

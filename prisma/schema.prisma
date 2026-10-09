@@ -9,20 +9,21 @@ datasource db {
 }
 
 model User {
-  id             String      @id @default(uuid())
+  id             String                 @id @default(uuid())
   name           String?
-  email          String?     @unique
+  email          String?                @unique
   passwordHash   String?
-  sessionVersion Int         @default(0)
-  role           Role        @default(PLAYER)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  sessionVersion Int                    @default(0)
+  role           Role                   @default(PLAYER)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
   characters     Character[]
-  gmParties      Party[]     @relation("GMToParty")
+  gmParties      Party[]                @relation("GMToParty")
+  advancements   CharacterAdvancement[]
 }
 
 model Character {
-  id                 String                @id @default(uuid())
+  id                 String                 @id @default(uuid())
   userId             String
   name               String
   ageGroup           AgeGroup
@@ -30,19 +31,20 @@ model Character {
   motivation         String
   trauma             String
   darkSecret         String
-  physicalConditions Json                  @default("{}")
-  mentalConditions   Json                  @default("{}")
-  insightsDefects    Json                  @default("{}")
-  experiencePoints   Int                   @default(0)
-  resources          Int                   @default(0)
-  capital            Int                   @default(0)
+  physicalConditions Json                   @default("{}")
+  mentalConditions   Json                   @default("{}")
+  insightsDefects    Json                   @default("{}")
+  experiencePoints   Int                    @default(0)
+  experienceVersion  Int                    @default(0)
+  resources          Int                    @default(0)
+  capital            Int                    @default(0)
   memento            String?
   notes              String?
   relationships      String?
-  equipment          Json                  @default("[]")
-  talents            Json                  @default("[]")
-  archetype          Archetype             @relation(fields: [archetypeId], references: [id])
-  user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  equipment          Json                   @default("[]")
+  talents            Json                   @default("[]")
+  archetype          Archetype              @relation(fields: [archetypeId], references: [id])
+  user               User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   attribute          CharacterAttribute?
   skill              CharacterSkill?
   parties            PartyMember[]
@@ -50,6 +52,34 @@ model Character {
   invitations        CharacterInvitation[]
   castleUses         CastleBenefitUse[]
   preparedItems      CastlePreparedItem[]
+  advancements       CharacterAdvancement[]
+}
+
+model CharacterAdvancement {
+  id            String          @id @default(uuid())
+  characterId   String
+  actorId       String?
+  actorName     String
+  requestId     String
+  kind          AdvancementKind
+  targetKey     String
+  targetName    String
+  previousValue Int?
+  newValue      Int?
+  xpCost        Int
+  xpBefore      Int
+  xpAfter       Int
+  createdAt     DateTime        @default(now())
+  character     Character       @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  actor         User?           @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@unique([characterId, requestId])
+  @@index([characterId, createdAt, id])
+}
+
+enum AdvancementKind {
+  SKILL
+  TALENT
 }
 
 model CharacterAttribute {
@@ -82,6 +112,9 @@ model CharacterSkill {
 
 model Archetype {
   id                   String                    @id @default(uuid())
+  bookKey              String?                   @unique
+  sourceBook           String?
+  sourcePage           Int?
   name                 String
   mainAttribute        String
   mainSkill            String
@@ -141,10 +174,42 @@ model Item {
   damage           Int?
   range            String?
   skill            String?
+  bookKey          String?                    @unique
+  sourceBook       String?
+  sourcePage       Int?
+  protection       Int?
+  agilityPenalty   Int?
+  doses            Int?
+  toxicity         Int?
+  usages           ItemUsage[]
   inventory        CharacterInventory[]
   partyStash       PartyStashItem[]
   preparedItems    CastlePreparedItem[]
   archetypeOptions ArchetypeEquipmentOption[]
+}
+
+model ItemUsage {
+  id           String        @id @default(uuid())
+  itemId       String
+  label        String
+  kind         ItemUsageKind
+  skills       String[]
+  bonus        Int           @default(0)
+  effect       String
+  requirements String        @default("")
+  damage       Int?
+  rangeMin     Int?
+  rangeMax     Int?
+  position     Int           @default(0)
+  item         Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, position])
+}
+
+enum ItemUsageKind {
+  TOOL
+  ATTACK
+  NARRATIVE
 }
 
 model CharacterInventory {
@@ -163,11 +228,23 @@ model CharacterInventory {
 
 model Talent {
   id                 String                    @id @default(uuid())
+  bookKey            String?                   @unique
   name               String
   description        String
   type               TalentType
   archetypeId        String?
   startingArchetypes ArchetypeStartingTalent[]
+}
+
+model SkillDefinition {
+  key            String   @id
+  name           String
+  attribute      String
+  description    String
+  extraSuccesses String[] @default([])
+  guidance       String[] @default([])
+  sourceBook     String?
+  sourcePages    Int[]    @default([])
 }
 
 model NPC {
@@ -531,6 +608,9 @@ enum ItemType {
   ARMOR
   GEAR
   MAGIC
+  SERVICE
+  COVER
+  ATTACK
 }
 
 enum TalentType {

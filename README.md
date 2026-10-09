@@ -48,6 +48,23 @@ Existing sessions must sign in again. Existing mysteries and their clues/entitie
 
 Re-running the seed preserves existing accounts and existing named content. Passwords are not printed. An intentional bootstrap reset requires `SEED_RESET_ADMIN_PASSWORD=true` and a new `SEED_ADMIN_PASSWORD`; this also invalidates old sessions. Normal password resets should use Admin > Users.
 
+### Academic Reference Content
+
+New installations include Academic's full template from the supplied core book (pages 26, 50 and 75): Resources 4-6, background/name suggestions, three starting talents, fixed writing materials, and the books/maps and liquor/slide-rule choices. Talent and equipment rules are paraphrased. Bonuses are conditional, not universal or automatically applied by the dice roller.
+
+For an existing installation, back up the database, preview the change, then explicitly apply it:
+
+```sh
+npm run db:content:academic
+npm run db:content:academic -- --apply
+```
+
+On FreeBSD, run `node --env-file=.env scripts/seed-academic.mjs` from the portable runtime directory (add `--apply` after reviewing the preview). No Prisma CLI or native engine is required.
+
+By default, the importer only completes the empty legacy Academic or the exact reference template. Conflicting custom templates, duplicate names, and differing item/talent definitions abort the entire transaction. An intentional replacement requires `--replace` (preview) and `--apply --replace` (write), after a database backup. Replacement updates shared talent/item rules in place, preserving catalogue IDs; characters using those records see the updated rules. It refuses ambiguous names, item reclassification, and talents belonging to another archetype.
+
+Repeat runs preserve relation IDs. Character records, personal resources, inventory rows, accounts and unrelated content are not rewritten. Existing legacy talents are retained, but new Academic characters choose from the three book talents. Other archetypes still need book-accurate content entry.
+
 ## Production Docker
 
 Use `docker-compose.prod.yml` as a standalone Compose file, not as an override for the development file. It uses a separate `production_pg_data` volume; development data is not copied automatically.
@@ -188,6 +205,57 @@ For real HTTP login and redaction checks, run the production app against that sa
 The integration suite creates and removes its own fixture records and covers cross-party mutations, invitation consent, character validation, session revocation, and concurrent HQ purchases. CI runs migrations, unit/integration tests, and HTTP smoke checks against disposable PostgreSQL.
 
 Five development-only advisories currently remain in ESLint's `braces` dependency chain. The production dependency audit is checked separately; no automatic major-version downgrade is applied to silence development tooling advisories.
+
+## Equipment Catalogue
+
+Admin > Items supports equipment, weapons, armor, magical items, services, cover and attack references. Add usage profiles for separate skill bonuses, conditional effects, damage and numeric zone ranges. Armor has dedicated Protection and Agility penalty fields; doses and toxicity are separate from inventory quantity. **Save & Add Another** retains the entry category and source reference for faster data entry.
+
+The core-book import covers all tables on printed pages 73-77: 87 table entries represented by 86 catalogue definitions, because the crowbar has both tool and attack profiles. Services, cover and unarmed/rifle-butt references are excluded from personal inventory, party stash and starting-equipment selectors. Availability is a success cost, not a money price.
+
+```sh
+npx prisma migrate deploy
+# Preview without writing:
+npm run db:content:equipment
+# Import the verified core catalogue:
+npm run db:content:equipment -- --apply
+```
+
+On the portable FreeBSD deployment, run `node scripts/import-equipment.mjs` (add `--apply` to write) after applying migrations. The importer loads the release's runtime `.env`; do not upload a development `.env`. It reuses compatible, unambiguous legacy entries without changing their IDs or prose. Conflicting custom definitions remain separate. Imported records are keyed, so subsequent runs preserve administrator edits rather than replace them.
+
+Compendium and character equipment details show usage requirements and source pages. The character dice helper offers only applicable skill profiles; conditional effects still require player/GM judgment. Armor is not automatically worn, its Agility penalty is not automatically applied, and doses are not automatically consumed. Purchasing and persistent equipped/consumable state remain separate follow-up work. Apply `20261009203000_equipment_catalogue` before starting this release; legacy armor without explicit statistics is marked for review rather than interpreted from an old bonus field.
+
+## Skills And Archetypes
+
+The Skills tab contains the twelve fixed skills from printed pages 44-47, including their attribute mapping, extra successes, and requirements. Admin > Skills edits reference text without changing canonical skill keys or dice-pool mappings. Rules can also be opened from the character dice helper and wizard.
+
+The core-reference import adds all ten archetypes from printed pages 26-35, with flavor text, names, motivation/trauma/secret/relationship suggestions, correct main attributes/skills, Resources ranges, thirty linked starting talents, and three equipment choice groups each. Four special starter items fill gaps outside the equipment tables. The Occultist overview's Magic tricks and Striking Fear are linked under the talent chapter's names, Conjuring Tricks and Strike Fear.
+
+```sh
+npx prisma migrate deploy
+npm run db:content:equipment -- --apply
+# Preview first, then apply:
+npm run db:content:core
+npm run db:content:core -- --apply
+```
+
+For portable deployments, use `node scripts/import-core-reference.mjs` with optional `--apply`. Apply `20261009210000_core_reference` before starting this version. The import adopts only recognized empty bootstrap stubs or complete verified templates; custom same-name templates remain separate. Book entries are labeled in the wizard. Existing characters, their scores, selected talents, notes, and inventory are never rewritten. Keyed entries and administrator edits are retained on subsequent imports.
+
+Magical starting equipment is allowed only if an administrator has explicitly included it in the selected archetype's equipment groups. The unconfigured legacy fallback still excludes magic. Availability 0 on narrative starter gear means no independent purchase cost is specified, not free equipment. Special item risks, skill substitutions, healing, and talent effects remain player/GM-adjudicated rather than automatically applied.
+
+Content-import integration tests require separate fresh databases: `CONTENT_TEST_DATABASE_URL` for Academic and `CORE_CONTENT_TEST_DATABASE_URL` for the full reference import. Their names must end in `_test`; import fixtures deliberately refuse to reuse populated databases.
+
+## Character Advancement
+
+Open **Advancement & History** below the character sheet's XP tracker. An Advance costs **5 XP** (core book, printed page 25): raise one skill by one rank, up to rank 5, or learn any new catalogue talent, including another archetype's talents. Starting-character restrictions still apply in the creation wizard only.
+
+- Owners, the character's party GM, and administrators can buy Advances. Other accounts cannot access the sheet or history.
+- Purchases require explicit confirmation. XP deduction, skill/talent updates, and the history receipt commit together. Concurrent stale submissions are rejected; retrying the same request cannot charge twice.
+- XP checkbox edits and Annals awards share a version counter so stale sheets cannot restore spent XP or overwrite awards. Refresh the sheet if another action has changed it.
+- History snapshots preserve the original talent name, actor name, cost, and XP balance even after catalogue edits. Existing skills/talents are not backfilled into history.
+- Attributes and Resources are not XP purchases. Special talent effects remain player/GM-adjudicated; buying a talent does not automatically change Resources or apply conditional bonuses. Malformed legacy talent data must be reviewed rather than silently replaced.
+- Apply the additive `20261009190000_character_advancement` migration before running this version. It creates history and initializes the version counter without spending XP or changing existing content.
+
+The advancement integration tests are included in `npm run test:integration`. The legacy migration test also checks that old character XP, notes and Resources remain unchanged and no history is invented.
 
 ## Castle Gyllencreutz
 

@@ -400,6 +400,8 @@ export async function upsertPartyStashItem(
     });
   } else {
     await serializableTransaction(async (tx) => {
+      const item = await tx.item.findUniqueOrThrow({ where: { id: itemId } });
+      if (!["GEAR", "WEAPON", "ARMOR", "MAGIC"].includes(item.type)) throw new Error("Services, cover and attack references cannot be stored in inventory.");
       const current = await tx.partyStashItem.findUnique({
         where: { partyId_itemId: { partyId, itemId } },
       });

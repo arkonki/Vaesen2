@@ -327,6 +327,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         (await prisma.character.findUniqueOrThrow({ where: { id: character } }))
           .experiencePoints,
       ).toBe(11);
+      expect((await prisma.character.findUniqueOrThrow({ where: { id: character } })).experienceVersion).toBe(1);
     });
     it("prepares canonical gear without turning it into permanent character inventory", async () => {
       const corridor = await buy("weapons-corridor");

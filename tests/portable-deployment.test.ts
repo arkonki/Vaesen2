@@ -50,7 +50,7 @@ describe("portable runtime", () => {
       await file(".next/standalone/node_modules/native.node");
       await file(".next/static/site.css");
       await file("public/icon.svg");
-      for (const name of ["prisma/client.js", "prisma/seed.js", "scripts/start-portable.mjs", "scripts/check-portable.mjs", "scripts/portable-env.mjs", "deploy/freebsd.env.example"]) {
+      for (const name of ["prisma/client.js", "prisma/seed.js", "prisma/content/academic.js", "prisma/content/academic.json", "scripts/seed-academic.mjs", "scripts/import-equipment.mjs", "scripts/import-core-reference.mjs", "prisma/content/core-reference.js", "prisma/content/archetypes.json", "prisma/content/archetype-talents.js", "prisma/content/skills.js", "prisma/content/starting-items.js", "prisma/content/equipment.js", "scripts/start-portable.mjs", "scripts/check-portable.mjs", "scripts/portable-env.mjs", "deploy/freebsd.env.example"]) {
         await mkdir(path.dirname(path.join(root, name)), { recursive: true });
         await cp(path.resolve(name), path.join(root, name));
       }
@@ -60,6 +60,8 @@ describe("portable runtime", () => {
       expect(await readFile(path.join(destination, ".next/static/site.css"), "utf8")).toBe("test");
       expect(await readFile(path.join(destination, "public/icon.svg"), "utf8")).toBe("test");
       expect(await readFile(path.join(destination, "prisma/client.js"), "utf8")).toContain("PrismaPg");
+      expect(await readFile(path.join(destination, "prisma/content/academic.js"), "utf8")).toContain("installAcademicTemplate");
+      expect(await readFile(path.join(destination, "scripts/seed-academic.mjs"), "utf8")).toContain("--apply");
       expect(await readFile(path.join(destination, "node_modules/bcryptjs/index.js"), "utf8")).toBe("test");
       expect(await readFile(path.join(destination, ".env.example"), "utf8")).not.toContain("must-not-be-copied");
       expect(await readFile(path.join(destination, "check.mjs"), "utf8")).toContain("prisma.user.count");

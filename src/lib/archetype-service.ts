@@ -1,3 +1,4 @@
+import { CARRIED_TYPES } from "./equipment";
 import prisma from "./prisma";
 import { archetypeTemplateInclude, archetypeTemplateSchema } from "./archetype-template";
 
@@ -13,8 +14,8 @@ export async function saveArchetypeTemplate(input: unknown, id?: string) {
       throw new Error("Starting talents must be general talents or belong to this archetype.");
     }
     const itemIds = [...new Set(equipmentGroups.flatMap(group => group.itemIds))];
-    const items = await tx.item.findMany({ where: { id: { in: itemIds }, type: { not: "MAGIC" } } });
-    if (items.length !== itemIds.length) throw new Error("Choose existing, non-magical starting equipment.");
+    const items = await tx.item.findMany({ where: { id: { in: itemIds }, type: { in: [...CARRIED_TYPES] } } });
+    if (items.length !== itemIds.length) throw new Error("Choose existing carried equipment, not services or references.");
 
     await tx.archetypeStartingTalent.deleteMany({ where: { archetypeId: archetype.id } });
     if (talentIds.length) await tx.archetypeStartingTalent.createMany({

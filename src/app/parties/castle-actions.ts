@@ -7,6 +7,7 @@ import prisma from "@/lib/prisma";
 import { getAppSession } from "@/lib/auth";
 import { canManageParty } from "@/lib/security";
 import { serializableTransaction } from "@/lib/transaction";
+import { canCarryItem, equipmentInclude, profilesFor } from "@/lib/equipment";
 import {
   HQ_FACTS,
   HQ_UPGRADES,
@@ -629,7 +630,7 @@ export async function activateCastleBenefit(hqId: string, input: unknown) {
     if (spec.key === "annals")
       await tx.character.updateMany({
         where: { id: { in: targets.map((c) => c.id) } },
-        data: { experiencePoints: { increment: 1 } },
+        data: { experiencePoints: { increment: 1 }, experienceVersion: { increment: 1 } },
       });
     if (spec.key === "caretaker") {
       if (!data.repairId) throw new Error("Choose a damaged facility");
@@ -651,9 +652,12 @@ export async function activateCastleBenefit(hqId: string, input: unknown) {
         );
       const item = await tx.item.findUniqueOrThrow({
         where: { id: data.itemId },
+        include: equipmentInclude,
       });
+      if (!canCarryItem(item)) throw new Error("Only carried equipment can be prepared.");
       const rule = benefit.equipment;
-      if (rule.types && !rule.types.includes(item.type))
+      const attacks = profilesFor(item).filter(profile => profile.kind === "ATTACK");
+      if (rule.types && !rule.types.includes(item.type) && !(rule.types.includes("WEAPON") && attacks.length))
         throw new Error("Wrong item type");
       let availability = rule.availability;
       if (
@@ -668,13 +672,13 @@ export async function activateCastleBenefit(hqId: string, input: unknown) {
         (item.availability < 1 || item.availability > availability)
       )
         throw new Error("Item availability is too high or unset");
-      const skill = item.skill?.replace(/\s/g, "").toLowerCase();
-      if (rule.skill && skill !== rule.skill.toLowerCase())
+      const attackSkills = attacks.flatMap(profile => profile.skills.map(skill => skill.toLowerCase()));
+      if (rule.skill && !attackSkills.includes(rule.skill.toLowerCase()))
         throw new Error("Choose a weapon for the required skill");
       if (
         spec.key === "armory" &&
-        item.type === ItemType.WEAPON &&
-        skill !== "closecombat"
+        item.type !== ItemType.ARMOR &&
+        !attackSkills.includes("closecombat")
       )
         throw new Error("Armory supplies melee weapons or armor");
       if (
@@ -694,7 +698,7 @@ export async function activateCastleBenefit(hqId: string, input: unknown) {
         throw new Error("Strong horses require Stable Boy");
       const quantity =
         spec.key === "gardener" && item.name.toLowerCase() === "weak poison"
-          ? 3
+          ? item.doses === 3 ? 1 : 3
           : rule.quantity || 1;
       await tx.castlePreparedItem.createMany({
         data: targets.map((c) => ({

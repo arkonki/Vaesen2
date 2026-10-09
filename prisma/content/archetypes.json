@@ -1,0 +1,775 @@
+{
+  "source": {
+    "title": "Vaesen: Nordic Horror Roleplaying",
+    "pages": [
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35
+    ],
+    "notes": [
+      "Occultist list names Magic tricks and Striking Fear correspond to Conjuring Tricks and Strike Fear on page 51.",
+      "Hunter hunting knife uses the knife/dagger catalogue profile; doctor bag uses Medical equipment.",
+      "Equipment with no independent availability specified uses 0, not an invented purchase price."
+    ]
+  },
+  "archetypes": [
+    {
+      "bookKey": "core-archetype-academic",
+      "sourcePage": 26,
+      "archetype": {
+        "name": "Academic",
+        "mainAttribute": "logic",
+        "mainSkill": "learning",
+        "startingResourcesMin": 4,
+        "startingResourcesMax": 6,
+        "flavorText": "We all agreed that it was theoretically possible to give those who are not verum videntes, or so-called Thursday's Children, the ability to see vaesen. The others quickly forgot our discussion. For me, the issue became an obsession. And not only a theoretical one. If people around us could see the truth, we would become the leaders of the new world. A text written by a Sufi philosopher from Kottayam mentioned a dark fluid which, after translation, was called Black Mud. Drinking it causes creatures to emerge. I had to sell much of my mother's jewelry to have a merchant bring a jar of said mud back to Upsala. And now, here it is, on the desk before me.",
+        "firstNameOptions": [
+          "Albert",
+          "Astrid",
+          "Elin",
+          "Isaac",
+          "Louis",
+          "Praskoviya"
+        ],
+        "lastNameOptions": [
+          "Brugge",
+          "Gregorius",
+          "Taaltinen"
+        ],
+        "motivationOptions": [
+          "Charting the unknown",
+          "Proving my critics wrong",
+          "Becoming famous"
+        ],
+        "traumaOptions": [
+          "Vaettir turned you into a rat",
+          "Aged by the magic of a mermaid",
+          "Watched your partner being torn apart by a giant"
+        ],
+        "darkSecretOptions": [
+          "Addicted to drugs",
+          "Stole or falsified documents to get research results",
+          "Hunted by a vaesen"
+        ],
+        "relationshipOptions": [
+          "A tool for my purposes",
+          "I cannot stay calm in your presence",
+          "A good friend"
+        ]
+      },
+      "talentNames": [
+        "Bookworm",
+        "Erudite",
+        "Knowledge is Reassuring"
+      ],
+      "equipmentGroups": [
+        {
+          "label": "Book collection or Map book",
+          "quantity": 1,
+          "items": [
+            "Book collection",
+            "Map book"
+          ]
+        },
+        {
+          "label": "Writing utensils and paper",
+          "quantity": 1,
+          "items": [
+            "Writing utensils and paper"
+          ]
+        },
+        {
+          "label": "Liquor or Slide rule",
+          "quantity": 1,
+          "items": [
+            "Liquor",
+            "Slide rule"
+          ]
+        }
+      ]
+    },
+    {
+      "bookKey": "core-archetype-doctor",
+      "sourcePage": 27,
+      "archetype": {
+        "name": "Doctor",
+        "mainAttribute": "logic",
+        "mainSkill": "medicine",
+        "startingResourcesMin": 4,
+        "startingResourcesMax": 6,
+        "flavorText": "There are electrical signals moving through our bodies. When a foreign organism penetrates the skin, microscopic soldiers are created in defense. The brain can remember more things than anyone could possibly write down in a lifetime. These wonders take place every second. Yet my colleagues continue to question the existence of supernatural beings. I was forced to retract my statements under humiliating circumstances in order to retain my right to practice. I know that the creature I dissected during my business trip to Rovaniemi in northern Finland was not one of God's creations. My oath as a doctor, to help and protect my fellow man, includes the threats of Hell.",
+        "firstNameOptions": [
+          "Alfred",
+          "Dorotea",
+          "Friedrich",
+          "Karl",
+          "Margit",
+          "Vilhelmina"
+        ],
+        "lastNameOptions": [
+          "Borelius",
+          "Köningsmark",
+          "Luukonen"
+        ],
+        "motivationOptions": [
+          "Exploring and describing the world",
+          "Aiding the weak and afflicted",
+          "Strengthening the Society and becoming its leader"
+        ],
+        "traumaOptions": [
+          "A corpse came back to life during an autopsy",
+          "Operated on a person with donkey's ears and hooves",
+          "Saw your destiny in the eyes of a dying mermaid"
+        ],
+        "darkSecretOptions": [
+          "Has two separate personalities",
+          "Involved in illicit affairs",
+          "Unnatural lust"
+        ],
+        "relationshipOptions": [
+          "I trust you with my secrets",
+          "You annoy me",
+          "I dream of you at night"
+        ]
+      },
+      "talentNames": [
+        "Army Medic",
+        "Chief Physician",
+        "Emergency Medicine"
+      ],
+      "equipmentGroups": [
+        {
+          "label": "Doctor's bag with medical equipment",
+          "quantity": 1,
+          "items": [
+            "Medical equipment"
+          ]
+        },
+        {
+          "label": "Liquor or fine wines",
+          "quantity": 1,
+          "items": [
+            "Liquor",
+            "Fine wines"
+          ]
+        },
+        {
+          "label": "Weak horse or strong poison",
+          "quantity": 1,
+          "items": [
+            "Weak horse",
+            "Strong poison"
+          ]
+        }
+      ]
+    },
+    {
+      "bookKey": "core-archetype-hunter",
+      "sourcePage": 28,
+      "archetype": {
+        "name": "Hunter",
+        "mainAttribute": "precision",
+        "mainSkill": "rangedCombat",
+        "startingResourcesMin": 2,
+        "startingResourcesMax": 4,
+        "flavorText": "The Baroness's interest in duck hunting was nothing more than an excuse to get some time alone with me in the open air. We used to bring wine and baguettes, and she would read to me tales of monsters and vaesen before we made love on beautiful blankets. I had mustered the courage to call her darling, even though her face told me I was moving too close to, or even beyond, the boundaries of our relationship. One night she came to my home, stark naked and exposed. Only when she straddled me did I notice that the Baron and several others had followed us into the cabin and hidden in the darkness by the door. I tried to get up, but the Baroness's increasingly violent movements pushed me down. As her moaning turned into strange words in a tongue that made my body cramp with fear, the others approached us, chanting along with her.",
+        "firstNameOptions": [
+          "Algot",
+          "Blenda",
+          "Egil",
+          "Maj",
+          "Malte",
+          "Torun"
+        ],
+        "lastNameOptions": [
+          "Ek",
+          "Lindberg",
+          "Sigridsson"
+        ],
+        "motivationOptions": [
+          "The thing that attacked my family must be destroyed",
+          "Live in tune with nature",
+          "Wants to bag some fantastic game"
+        ],
+        "traumaOptions": [
+          "Attacked by the branches of an ash tree wife",
+          "Broke your leg in the forest, but was guided home by a will o' the wisp",
+          "Captured at dawn by a mountain troll and was stuck in its petrified arms"
+        ],
+        "darkSecretOptions": [
+          "I sold my soul",
+          "I cannot control my fits of rage",
+          "Has children with a vaesen"
+        ],
+        "relationshipOptions": [
+          "I am attracted to you",
+          "I hate bullies like you",
+          "You're a townie weakling"
+        ]
+      },
+      "talentNames": [
+        "Bloodhound",
+        "Herbalist",
+        "Marksman"
+      ],
+      "equipmentGroups": [
+        {
+          "label": "Rifle",
+          "quantity": 1,
+          "items": [
+            "Rifle"
+          ]
+        },
+        {
+          "label": "Hunting knife or hunting dog",
+          "quantity": 1,
+          "items": [
+            "Knife or dagger",
+            "Hunting dog"
+          ]
+        },
+        {
+          "label": "Hunting trap or hunting equipment",
+          "quantity": 1,
+          "items": [
+            "Hunting trap",
+            "Hunting equipment"
+          ]
+        }
+      ]
+    },
+    {
+      "bookKey": "core-archetype-occultist",
+      "sourcePage": 29,
+      "archetype": {
+        "name": "Occultist",
+        "mainAttribute": "precision",
+        "mainSkill": "stealth",
+        "startingResourcesMin": 1,
+        "startingResourcesMax": 4,
+        "flavorText": "I had to know the truth. How did I acquire the power of foresight, and how could I make men collapse in pain just by imagining their beating hearts? When I was young and moved to the city, my mother stayed behind in Långaby. She lived alone with two goats and a pig which she oddly enough had named after my late father. Mother didn't like to talk about these things. She kept coming back to the same two sentences: Your cradle. I woke up and looked in your cradle. Eventually I lost my patience. I threatened her with the fireplace poker, claiming that I could turn her into a wart on my cheek. Then she told me. I was swapped for another.",
+        "firstNameOptions": [
+          "Aleksander",
+          "Niklas",
+          "Thomas",
+          "Ingrid",
+          "Ulrika",
+          "Valentina"
+        ],
+        "lastNameOptions": [
+          "Bäcklund",
+          "Konradsson",
+          "Mörk"
+        ],
+        "motivationOptions": [
+          "Learning about vaesen",
+          "Understanding myself",
+          "Power"
+        ],
+        "traumaOptions": [
+          "Was hit by corrosive venom while trying to steal a lindworm egg",
+          "The family farm is being run by a grumpy house nisse",
+          "Was attacked by a night raven who infected you with a febrile disease"
+        ],
+        "darkSecretOptions": [
+          "Guilty of a heinous crime",
+          "My powers control me",
+          "Changeling"
+        ],
+        "relationshipOptions": [
+          "You are hiding something from the rest of us",
+          "You bring me peace.",
+          "You will save us all one day"
+        ]
+      },
+      "talentNames": [
+        "Conjuring Tricks",
+        "Medium",
+        "Strike Fear"
+      ],
+      "equipmentGroups": [
+        {
+          "label": "Crystal ball",
+          "quantity": 1,
+          "items": [
+            "Crystal ball"
+          ]
+        },
+        {
+          "label": "Powdered stag's horn or tinderbox",
+          "quantity": 1,
+          "items": [
+            "Powdered stag's horn",
+            "Tinderbox"
+          ]
+        },
+        {
+          "label": "Dagger or cooking pot",
+          "quantity": 1,
+          "items": [
+            "Knife or dagger",
+            "Cooking pot"
+          ]
+        }
+      ]
+    },
+    {
+      "bookKey": "core-archetype-officer",
+      "sourcePage": 30,
+      "archetype": {
+        "name": "Officer",
+        "mainAttribute": "precision",
+        "mainSkill": "rangedCombat",
+        "startingResourcesMin": 3,
+        "startingResourcesMax": 7,
+        "flavorText": "As a child, I was enchanted by the glistening medals of the stately gentlemen moving across the dance floor at my parents' gatherings. An uncle taught me to shoot. He instructed me in the moral principles to which the king's soldiers ought to adhere. As I myself rode toward the battlefront, I fantasized about my spectacular return. No one had told me what would happen in between. Among screaming bodies and gut-spewing soldiers, I saw looting and abuse. I was hit by a bullet from one of my own. When I woke up, I was lying on a cart packed with corpses. The creatures caring for me were quite strange-looking. I think they were trolls. Yet friendly and shy. I haven't told mother about them or the battlefield. But I lose my speech when I think of the courier that will one day summon me to the next battle.",
+        "firstNameOptions": [
+          "Alexandra",
+          "Franz",
+          "Jarmo",
+          "Johan",
+          "Klara",
+          "Kristina"
+        ],
+        "lastNameOptions": [
+          "Almklint",
+          "Lidén",
+          "Nordenflycht"
+        ],
+        "motivationOptions": [
+          "Make my father proud",
+          "My friends need me",
+          "Seek out danger and death"
+        ],
+        "traumaOptions": [
+          "Almost drowned when your ship was dragged down by a sea monster",
+          "Lost all your men to an angry giant",
+          "Saw dead warriors rise again on the battlefield"
+        ],
+        "darkSecretOptions": [
+          "Deserter",
+          "Cannot cope with filth and disorder",
+          "Killed a defenseless enemy"
+        ],
+        "relationshipOptions": [
+          "Protects you at any cost",
+          "My leader",
+          "Distrusts you"
+        ]
+      },
+      "talentNames": [
+        "Battle-hardened",
+        "Gentleman",
+        "Tactician"
+      ],
+      "equipmentGroups": [
+        {
+          "label": "Rifle or pistol",
+          "quantity": 1,
+          "items": [
+            "Rifle",
+            "Pistol or revolver"
+          ]
+        },
+        {
+          "label": "Compass or bayonet",
+          "quantity": 1,
+          "items": [
+            "Compass",
+            "Bayonet"
+          ]
+        },
+        {
+          "label": "Map book or saber",
+          "quantity": 1,
+          "items": [
+            "Map book",
+            "Sword or saber"
+          ]
+        }
+      ]
+    },
+    {
+      "bookKey": "core-archetype-priest",
+      "sourcePage": 31,
+      "archetype": {
+        "name": "Priest",
+        "mainAttribute": "empathy",
+        "mainSkill": "observation",
+        "startingResourcesMin": 4,
+        "startingResourcesMax": 6,
+        "flavorText": "I was a skeptic like any other. Despite the color of my collar I met with modern thinkers talking about the symbolic messages of the bible. Leviathan, the great devil-snake, was mankind's struggle against its own potential for evil. Possessions and demons were historical descriptions of the mental disorders of the time. But I saw revenants crawling out of the fjord near the village of Vestnes on the Norwegian coast. We hid inside the church and let the bells ring until the morning light drove them off. Now I know better than to be ignorant of the word of our Lord. The scriptures are true!",
+        "firstNameOptions": [
+          "Elizabeth",
+          "Erik",
+          "Lydia",
+          "Maria",
+          "Otto",
+          "Viktor"
+        ],
+        "lastNameOptions": [
+          "af Blacke",
+          "Forsmark",
+          "Nyström"
+        ],
+        "motivationOptions": [
+          "Performing a sacred mission",
+          "Cleansing my tarnished soul",
+          "Understanding God's creation"
+        ],
+        "traumaOptions": [
+          "Hurt someone after being enthralled by a witch",
+          "Watched a church grim tear apart some thieves trying to steal the church silver",
+          "The third owner of a spertus, serving the church to avoid being twisted"
+        ],
+        "darkSecretOptions": [
+          "The Devil speaks to me",
+          "I have stolen my identity",
+          "Ensnared by a vaesen"
+        ],
+        "relationshipOptions": [
+          "I am better than you",
+          "Secretly in love with you",
+          "My disciple"
+        ]
+      },
+      "talentNames": [
+        "Absolution",
+        "Blessing",
+        "Confessor"
+      ],
+      "equipmentGroups": [
+        {
+          "label": "Musical instrument or fine wines",
+          "quantity": 1,
+          "items": [
+            "Musical instrument",
+            "Fine wines"
+          ]
+        },
+        {
+          "label": "Writing utensils and paper",
+          "quantity": 1,
+          "items": [
+            "Writing utensils and paper"
+          ]
+        },
+        {
+          "label": "Holy water or old Bible",
+          "quantity": 1,
+          "items": [
+            "Holy water",
+            "Old Bible"
+          ]
+        }
+      ]
+    },
+    {
+      "bookKey": "core-archetype-private-detective",
+      "sourcePage": 32,
+      "archetype": {
+        "name": "Private Detective",
+        "mainAttribute": "logic",
+        "mainSkill": "investigation",
+        "startingResourcesMin": 2,
+        "startingResourcesMax": 5,
+        "flavorText": "It never occurred to me to ask why they hired a detective to go all the way to Kristinehamn instead of contacting the local authorities. I assumed they had heard of the man who solved the dockside murders. But what they needed was someone to clean up a slaughterhouse. The castle looked as if it had been blasted by cannons. The villagers were afraid to enter. It reeked of blood and excrement. I don't even want to think about what happened next. I banished whatever it was that had attacked the von Fleesingen family and turned their bodies inside out. But not before it had slain every man, woman and child in the nearby villages. I now visit the castle every night.",
+        "firstNameOptions": [
+          "Anders",
+          "Felicia",
+          "Gabriella",
+          "Henrik",
+          "Samuel",
+          "Stina"
+        ],
+        "lastNameOptions": [
+          "Bagghult",
+          "Järv",
+          "Mäkinen"
+        ],
+        "motivationOptions": [
+          "Getting away from my family",
+          "Uncovering the truth",
+          "Thrill-seeking"
+        ],
+        "traumaOptions": [
+          "Heard the cry of a myling during your search for a missing child",
+          "Had nightmares and woke up breathless and mare-ridden",
+          "Came face-to-face with a werewolf"
+        ],
+        "darkSecretOptions": [
+          "There is a price on my head",
+          "Constant adulterer",
+          "Drug addict"
+        ],
+        "relationshipOptions": [
+          "You think you can trust me",
+          "A good person",
+          "Tries to understand you"
+        ]
+      },
+      "talentNames": [
+        "Eagle Eye",
+        "Elementary",
+        "Focused"
+      ],
+      "equipmentGroups": [
+        {
+          "label": "Magnifying glass or lockpicks",
+          "quantity": 1,
+          "items": [
+            "Magnifying glass",
+            "Lockpicks"
+          ]
+        },
+        {
+          "label": "Revolver",
+          "quantity": 1,
+          "items": [
+            "Pistol or revolver"
+          ]
+        },
+        {
+          "label": "Knuckle duster or binoculars",
+          "quantity": 1,
+          "items": [
+            "Knuckle duster",
+            "Binoculars"
+          ]
+        }
+      ]
+    },
+    {
+      "bookKey": "core-archetype-servant",
+      "sourcePage": 33,
+      "archetype": {
+        "name": "Servant",
+        "mainAttribute": "physique",
+        "mainSkill": "force",
+        "startingResourcesMin": 2,
+        "startingResourcesMax": 4,
+        "flavorText": "I was saved by my small bladder. While I was out pissing against a tree, an uninvited fiddler showed up at the Christmas party which the Duke lets us servants hold once a year, on Boxing Day evening. The tunes of his fiddle made my legs twitch as I stepped back toward the house. Through the window I saw them dancing, their faces frozen in desperate grins; they couldn't stop. I had heard of the devil's instrument which forces one's limbs to move until they fall apart. There were rumors of skulls still rhythmically clacking their jaws as they were being buried. How would I be able to resist the musician of Lucifer? When I returned the following morning, the music had stopped. No one spoke of the party. More than half quit their jobs. I wonder what would have happened had I joined the others inside.",
+        "firstNameOptions": [
+          "Anna",
+          "Elsa",
+          "Joakim",
+          "Rut",
+          "Sören",
+          "Torsten"
+        ],
+        "lastNameOptions": [
+          "Bäck",
+          "Rask",
+          "Änglund"
+        ],
+        "motivationOptions": [
+          "Protecting my master",
+          "Curiosity",
+          "An urge to help humans and vaesen alike"
+        ],
+        "traumaOptions": [
+          "Bitten by a brook horse",
+          "Lost a master to the alluring song of the Neck",
+          "Served a household plagued by a changeling"
+        ],
+        "darkSecretOptions": [
+          "I murdered someone",
+          "Persecuted for my religion",
+          "Spying for a foreign power"
+        ],
+        "relationshipOptions": [
+          "At your service",
+          "I don't take orders from you",
+          "Mutual respect"
+        ]
+      },
+      "talentNames": [
+        "Loyal",
+        "Robust",
+        "Tough as Nails"
+      ],
+      "equipmentGroups": [
+        {
+          "label": "Revolver",
+          "quantity": 1,
+          "items": [
+            "Pistol or revolver"
+          ]
+        },
+        {
+          "label": "Hurricane lamp or make-up",
+          "quantity": 1,
+          "items": [
+            "Hurricane lamp",
+            "Make-up"
+          ]
+        },
+        {
+          "label": "Field kitchen or simple bandages",
+          "quantity": 1,
+          "items": [
+            "Field kitchen",
+            "Simple bandages"
+          ]
+        }
+      ]
+    },
+    {
+      "bookKey": "core-archetype-vagabond",
+      "sourcePage": 34,
+      "archetype": {
+        "name": "Vagabond",
+        "mainAttribute": "physique",
+        "mainSkill": "manipulation",
+        "startingResourcesMin": 1,
+        "startingResourcesMax": 3,
+        "flavorText": "I was five years old when I learned to carve and interpret hobo signs. At fifteen I came across a symbol I'd never seen before. It had been scratched into the fence of an isolated farm – a star with a distorted guard dog, along with the symbol for warning, repeated several times. Instead of getting out of there I hid in in the hay loft of a barn, and waited, eager to learn what I would see through its window. When night came, a bright light rose from the ground, and I could hear a whistling sound seemingly coming from the starry sky above. I grabbed my pack, ready to run far away from there. But there was a handsome man with shining eyes standing in the doorway. It took me ten years to break the spell that made me his slave. Next time we meet, he will pay for the humiliation he subjected me to.",
+        "firstNameOptions": [
+          "Dagmar",
+          "Oskar",
+          "Rasmus",
+          "Rolf",
+          "Signe",
+          "Viola"
+        ],
+        "lastNameOptions": [
+          "Dolk",
+          "Eriksson",
+          "Krabbe"
+        ],
+        "motivationOptions": [
+          "Avenging my family",
+          "Exposing supernatural secrets",
+          "Being liked"
+        ],
+        "traumaOptions": [
+          "Saw a revenant rise from its grave",
+          "Forever in love with a wood wife",
+          "Survived a week inside a troll bag"
+        ],
+        "darkSecretOptions": [
+          "Stolen identity",
+          "Terminal illness",
+          "A vaesen kills anyone I love"
+        ],
+        "relationshipOptions": [
+          "You scratch my back, and I'll scratch yours",
+          "Feigned gratitude",
+          "You are my friend"
+        ]
+      },
+      "talentNames": [
+        "Hobo Tricks",
+        "Suspicious",
+        "Well-traveled"
+      ],
+      "equipmentGroups": [
+        {
+          "label": "Walking stick",
+          "quantity": 1,
+          "items": [
+            "Walking stick"
+          ]
+        },
+        {
+          "label": "Knife or crowbar",
+          "quantity": 1,
+          "items": [
+            "Knife or dagger",
+            "Crowbar"
+          ]
+        },
+        {
+          "label": "Liquor or pet dog",
+          "quantity": 1,
+          "items": [
+            "Liquor",
+            "Pet dog"
+          ]
+        }
+      ]
+    },
+    {
+      "bookKey": "core-archetype-writer",
+      "sourcePage": 35,
+      "archetype": {
+        "name": "Writer",
+        "mainAttribute": "empathy",
+        "mainSkill": "inspiration",
+        "startingResourcesMin": 2,
+        "startingResourcesMax": 5,
+        "flavorText": "Was the creature trying to hurt me or do me a favor? I had been sitting in my chamber for several nights in a row, with no money for candles or lamp oil, my only companions a stack of blank sheets of paper and my own growling stomach – or so I thought. Suddenly there was something beside me, breathing white clouds in the cool air. It grabbed my pen in a firm grip. And then it wrote. At first I rejoiced in the beautiful words. But it wouldn't stop. For five days and five nights the creature wrote with my hand. The result was the book everyone is talking about, and the fingers I can no longer use. I never saw its face. But I will find it again.",
+        "firstNameOptions": [
+          "August",
+          "Edvard",
+          "Helena",
+          "Hugo",
+          "Maud",
+          "Selma"
+        ],
+        "lastNameOptions": [
+          "Johansson",
+          "Nilsson",
+          "Skytte"
+        ],
+        "motivationOptions": [
+          "Finding a certain vaesen",
+          "Researching a book",
+          "Revenge"
+        ],
+        "traumaOptions": [
+          "Angered fairies who put you to sleep and sucked your blood",
+          "Cursed by a homeless vaettir to write a book in your own blood",
+          "Heard the song of the Neck, but failed to write down the lyrics"
+        ],
+        "darkSecretOptions": [
+          "I record and use the secrets and weaknesses of my friends",
+          "Wanted for revolutionary ideas",
+          "My life's work is a lie"
+        ],
+        "relationshipOptions": [
+          "You inspire me",
+          "Tries to win your appreciation",
+          "You frighten me"
+        ]
+      },
+      "talentNames": [
+        "Automatic Writing",
+        "Journalist",
+        "Wordsmith"
+      ],
+      "equipmentGroups": [
+        {
+          "label": "Writing utensils and paper",
+          "quantity": 1,
+          "items": [
+            "Writing utensils and paper"
+          ]
+        },
+        {
+          "label": "Camera or Opera glasses",
+          "quantity": 1,
+          "items": [
+            "Camera",
+            "Opera glasses"
+          ]
+        },
+        {
+          "label": "Pet dog or Book collection",
+          "quantity": 1,
+          "items": [
+            "Pet dog",
+            "Book collection"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 const bcrypt = require("bcryptjs");
 const { ItemType, Role, TalentType } = require("@prisma/client");
 const { createPrismaClient } = require("./client");
+const { installAcademicTemplate } = require("./content/academic");
 
 const prisma = createPrismaClient();
 
@@ -14,8 +15,8 @@ const archetypes = [
     name: "Academic",
     mainAttribute: "logic",
     mainSkill: "learning",
-    startingResourcesMin: 1,
-    startingResourcesMax: 3,
+    startingResourcesMin: 4,
+    startingResourcesMax: 6,
   },
   {
     name: "Doctor",
@@ -59,11 +60,6 @@ const generalTalentData = [
 ];
 
 const archetypeTalentData = [
-  {
-    archetype: "Academic",
-    name: "Research Network",
-    description: "Scholarly contacts help you surface obscure leads faster than most investigators.",
-  },
   {
     archetype: "Doctor",
     name: "Steady Hands",
@@ -231,6 +227,9 @@ async function seedArchetypes() {
   const byName = new Map();
 
   for (const archetype of archetypes) {
+    if (archetype.name === "Academic" && !await prisma.archetype.findFirst({ where: { name: { equals: "Academic", mode: "insensitive" } } })) {
+      await installAcademicTemplate(prisma, { apply: true });
+    }
     const saved = await upsertByName(prisma.archetype, archetype.name, archetype);
     byName.set(saved.name, saved);
   }

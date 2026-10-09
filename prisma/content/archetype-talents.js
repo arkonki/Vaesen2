@@ -1,0 +1,33 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Shared engine-free Node content importer. */
+const { academic } = require('./academic');
+const descriptions = {
+  ...Object.fromEntries(academic.talents.map(t => [t.name, t.description])),
+  'Army Medic': 'Add +2 to Fear tests triggered by dead or injured human bodies.',
+  'Chief Physician': 'When treating fellow investigators with Medicine, heal four Conditions rather than three on success, and another four for each extra success.',
+  'Emergency Medicine': 'Ignore mental Conditions when testing Medicine.',
+  'Bloodhound': 'Add +2 to Vigilance when tracking your prey.',
+  'Herbalist': 'Wild herbs let you use Medicine without medical supplies.',
+  'Marksman': 'Add +2 to Ranged Combat on your first turn after successfully ambushing or attacking the enemy.',
+  'Conjuring Tricks': 'When conjuring tricks are used to influence people, you may test Stealth instead of Manipulation. The archetype overview calls this Magic tricks.',
+  'Medium': 'Use Observation in a seance to predict futures or contact the dead. Extra successes give more information, longer contact, or materialized spirits. Failure may yield false information, an attack, or a Condition.',
+  'Strike Fear': 'As a slow action, cause Fear 1 in one victim in your zone; this does not affect vaesen. An NPC resists with Logic or Empathy, adding one die per friendly individual in the zone. The archetype overview calls this Striking Fear.',
+  'Battle-hardened': 'Draw two initiative cards and choose one.',
+  'Gentleman': 'Ignore mental Condition penalties on Manipulation tests.',
+  'Tactician': 'After a successful Ranged Combat test, spend an extra success to order a friend. If followed, the order gives +2 on that friend\'s next test. Repeat for different friends by spending further successes.',
+  'Absolution': 'An investigator confessing to you as a recovery activity heals three Conditions instead of two.',
+  'Blessing': 'Once per session, bless an object or another investigator. Its user or the blessed investigator gains +2 on one chosen test. The advantage ends when used or when the mystery ends. Each character or object can receive your blessing only once per mystery.',
+  'Confessor': 'In a confidential conversation, you may use Observation instead of Manipulation.',
+  'Eagle Eye': 'Add +2 to Vigilance when interpreting a situation in which you are not involved.',
+  'Elementary': 'Once per session, ask the GM to explain the connection between clues.',
+  'Focused': 'Ignore Condition penalties on Investigation tests.',
+  'Loyal': 'Add +2 to Fear tests when someone you have sworn to protect is present.',
+  'Robust': 'Once per session, ignore physical Condition penalties on one roll.',
+  'Tough as Nails': 'Add +2 to Force when fighting unarmed.',
+  'Hobo Tricks': 'Add +2 to Stealth when hiding yourself or an object from a wealthy human.',
+  'Suspicious': 'Ignore mental Conditions on Vigilance tests.',
+  'Well-traveled': 'Once per mystery, test Manipulation to establish a local NPC you have met before. The GM decides how they have changed and what they think of you. Failure makes them hostile or in serious need of help.',
+  'Automatic Writing': 'Once per session, channel spirits through writing and test Inspiration for GM-provided clues, predictions, or glimpses of enemies\' thoughts and experiences. Extra successes reveal more clues. Failure may cause a Condition, possession, or a player-chosen personality change lasting 1d6 hours.',
+  'Journalist': 'Use Inspiration instead of Manipulation when charming or deceiving someone to obtain information.',
+  'Wordsmith': 'Ignore Condition penalties on Inspiration tests.',
+};
+module.exports = { descriptions };

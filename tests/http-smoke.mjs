@@ -111,12 +111,18 @@ try {
   assert.ok(compendium.includes('"vaesen":[]') || compendium.includes('\\"vaesen\\":[]'));
   const deniedAdmin = await playerRequest("/admin/users");
   assert.ok(deniedAdmin.status >= 300 && deniedAdmin.status < 400);
+  const deniedSkills = await playerRequest("/admin/skills");
+  assert.ok(deniedSkills.status >= 300 && deniedSkills.status < 400);
+  assert.equal((await playerRequest("/compendium?tab=skills")).status,200);
 
   const adminRequest = client();
   assert.equal((await signIn(adminRequest, admin.email)).status, 200);
   const userPage = await (await adminRequest("/admin/users")).text();
   assert.ok(!userPage.includes("passwordHash"));
   assert.ok(!userPage.includes(hash));
+  const skillEditor = await adminRequest("/admin/skills?key=medicine");
+  assert.equal(skillEditor.status,200);
+  assert.ok((await skillEditor.text()).includes('Save Reference'));
   const adminHQ = await (await adminRequest(`/parties/${party.id}/hq`)).text();
   assert.ok(adminHQ.includes(`${prefix}-private-threat`));
   assert.ok(adminHQ.includes(`${prefix}-recruit-secret`));

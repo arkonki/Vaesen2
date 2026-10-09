@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAppSession } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { equipmentInclude } from "@/lib/equipment";
 import CompendiumClient from "./compendium-client";
 import { archetypeTemplateInclude } from "@/lib/archetype-template";
 
@@ -13,12 +14,13 @@ export default async function CompendiumPage() {
 
   const canViewGmContent = session.user.role === "GM" || session.user.role === "ADMIN";
 
-  const [items, talents, archetypes, npcs, vaesen] = await Promise.all([
-    prisma.item.findMany({ orderBy: { name: "asc" } }),
+  const [items, talents, archetypes, npcs, vaesen, skills] = await Promise.all([
+    prisma.item.findMany({ include: equipmentInclude, orderBy: { name: "asc" } }),
     prisma.talent.findMany({ orderBy: { name: "asc" } }),
     prisma.archetype.findMany({ orderBy: { name: "asc" }, include: archetypeTemplateInclude }),
     canViewGmContent ? prisma.nPC.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
     canViewGmContent ? prisma.vaesen.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
+    prisma.skillDefinition.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -32,6 +34,7 @@ export default async function CompendiumPage() {
           archetypes={archetypes}
           npcs={npcs}
           vaesen={vaesen}
+          skills={skills}
         />
       </div>
     </div>

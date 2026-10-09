@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
-import { ItemType, TalentType } from "@prisma/client";
+import { TalentType } from "@prisma/client";
+import { equipmentInclude } from "@/lib/equipment";
 import { getAppSession } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import CharacterSheet from "./sheet";
+import { getCharacterAdvancements } from "../actions";
 import CharacterCastleBenefits, {
   type CharacterCastleBenefit,
 } from "@/components/character-castle-benefits";
@@ -82,7 +84,7 @@ export default async function CharacterSheetPage({
       skill: true,
       inventory: {
         include: {
-          item: true,
+          item: { include: equipmentInclude },
         },
       },
     },
@@ -115,6 +117,7 @@ export default async function CharacterSheetPage({
   }
 
   const canEdit = isOwner || isAdmin || isGmWithAccess;
+  const history = await getCharacterAdvancements(id);
   const castleScope =
     isOwner || isAdmin ? {} : { party: { gmId: session.user.id } };
   const castleUses = await prisma.castleBenefitUse.findMany({
@@ -163,17 +166,12 @@ export default async function CharacterSheetPage({
         upgrade: { headquarters: castleScope },
       },
     },
-    include: { item: true },
+    include: { item: { include: equipmentInclude } },
   });
 
   const talentIds = parseStringArray(character.talents);
-  const talents =
-    talentIds.length > 0
-      ? await prisma.talent.findMany({
-          where: { id: { in: talentIds } },
-          select: { id: true, name: true, description: true, type: true },
-        })
-      : [];
+  const catalogueTalents = await prisma.talent.findMany({ select: { id: true, name: true, description: true, type: true }, orderBy: { name: "asc" } });
+  const talents = catalogueTalents.filter(talent => talentIds.includes(talent.id));
 
   const inventory = [
     ...character.inventory,
@@ -185,17 +183,7 @@ export default async function CharacterSheetPage({
     id: entry.id,
     quantity: entry.quantity,
     notes: entry.notes,
-    item: {
-      id: entry.item.id,
-      name: entry.item.name,
-      type: entry.item.type as ItemType,
-      description: entry.item.description,
-      bonus: entry.item.bonus,
-      availability: entry.item.availability,
-      damage: entry.item.damage,
-      range: entry.item.range,
-      skill: entry.item.skill,
-    },
+    item: entry.item,
   }));
 
   return (
@@ -228,6 +216,11 @@ export default async function CharacterSheetPage({
           notes={character.notes ?? ""}
           relationships={character.relationships ?? ""}
           experiencePoints={character.experiencePoints}
+          experienceVersion={character.experienceVersion}
+          advancementHistory={history.entries}
+          hasMoreAdvancements={history.hasMore}
+          availableTalents={catalogueTalents.filter(talent => !talentIds.includes(talent.id))}
+          hasSkillRecord={Boolean(character.skill)}
           physicalConditions={normalizeConditions(
             character.physicalConditions,
             PHYSICAL_KEYS,

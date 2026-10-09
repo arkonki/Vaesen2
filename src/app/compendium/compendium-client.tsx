@@ -4,19 +4,24 @@ import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import PageMasthead from "@/components/page-masthead";
 import { compendiumTab } from "@/lib/ui-flow";
-import { Item, ItemType, NPC, Talent, TalentType, Vaesen } from "@prisma/client";
+import { ItemType, NPC, Talent, TalentType, Vaesen, SkillDefinition } from "@prisma/client";
+import SkillDetails from "@/components/skill-details";
+import { ATTRIBUTE_KEYS } from "@/lib/character-rules";
+import EquipmentDetails from "@/components/equipment-details";
+import { EQUIPMENT_TYPES, typeName, type EquipmentItem } from "@/lib/equipment";
 import type { ArchetypeTemplate } from "@/lib/archetype-template";
 
-type TabId = "rules" | "items" | "talents" | "archetypes" | "npcs" | "vaesen";
+type TabId = "rules" | "skills" | "items" | "talents" | "archetypes" | "npcs" | "vaesen";
 
 type CompendiumClientProps = {
   role: string;
   canViewGmContent: boolean;
-  items: Item[];
+  items: EquipmentItem[];
   talents: Talent[];
   archetypes: ArchetypeTemplate[];
   npcs: NPC[];
   vaesen: Vaesen[];
+  skills: SkillDefinition[];
 };
 
 const GENERAL_RULES_SECTIONS = [
@@ -57,11 +62,13 @@ export default function CompendiumClient({
   archetypes,
   npcs,
   vaesen,
+  skills,
 }: CompendiumClientProps) {
   const tabs = useMemo(
     () =>
       [
         { id: "rules" as TabId, label: "General Rules" },
+        { id: "skills" as TabId, label: "Skills" },
         { id: "items" as TabId, label: "Items" },
         { id: "talents" as TabId, label: "Talents" },
         { id: "archetypes" as TabId, label: "Archetypes" },
@@ -78,7 +85,7 @@ export default function CompendiumClient({
   const params = useSearchParams();
   const activeTab = compendiumTab(params.get("tab"), canViewGmContent);
   const query = params.get("q") || "";
-  const itemTypeFilter = ["WEAPON", "ARMOR", "GEAR", "MAGIC"].includes(params.get("type") || "") ? params.get("type") as ItemType : "ALL";
+  const itemTypeFilter = (EQUIPMENT_TYPES as readonly string[]).includes(params.get("type") || "") ? params.get("type") as ItemType : "ALL";
   const talentTypeFilter = ["GENERAL", "ARCHETYPE"].includes(params.get("talent") || "") ? params.get("talent") as TalentType : "ALL";
   function updateUrl(key: string, value: string, push = false) {
     const next = new URLSearchParams(window.location.search);
@@ -88,13 +95,15 @@ export default function CompendiumClient({
   }
 
   const normalizedQuery = query.trim().toLowerCase();
+  const attributeFilter = (ATTRIBUTE_KEYS as readonly string[]).includes(params.get("attribute") || "") ? params.get("attribute")! : "ALL";
+  const filteredSkills = skills.filter(skill => (attributeFilter === "ALL" || skill.attribute === attributeFilter) && matchesQuery([skill.name,skill.attribute,skill.description,...skill.extraSuccesses,...skill.guidance], normalizedQuery));
 
   const filteredItems = useMemo(
     () =>
       items.filter(
         (item) =>
           (itemTypeFilter === "ALL" || item.type === itemTypeFilter) &&
-          matchesQuery([item.name, item.description, item.skill, item.range], normalizedQuery)
+          matchesQuery([item.name, item.description, item.skill, item.range, ...(item.usages ?? []).flatMap(u => [u.label, u.effect, u.requirements, ...u.skills])], normalizedQuery)
       ),
     [items, itemTypeFilter, normalizedQuery]
   );
@@ -130,16 +139,17 @@ export default function CompendiumClient({
   );
 
   const filteredRules = GENERAL_RULES_SECTIONS.filter(section => matchesQuery([section.title,section.body],normalizedQuery));
-  const resultCount = { rules: filteredRules.length, items: filteredItems.length, talents: filteredTalents.length, archetypes: filteredArchetypes.length, npcs: filteredNpcs.length, vaesen: filteredVaesen.length }[activeTab];
+  const resultCount = { rules: filteredRules.length, skills: filteredSkills.length, items: filteredItems.length, talents: filteredTalents.length, archetypes: filteredArchetypes.length, npcs: filteredNpcs.length, vaesen: filteredVaesen.length }[activeTab];
 
   return (
     <div className="space-y-6">
       <PageMasthead title="Compendium" eyebrow="The Society's Library" description="Rules, equipment, and lore at your fingertips. Search a category to find what you need at the table." artwork="library" />
       <div className="ledger-search-toolbar">
         <label>Search {tabs.find(tab => tab.id === activeTab)?.label}<input type="search" value={query} onChange={event => updateUrl("q",event.target.value)} placeholder="Name, rule, or keyword..." /></label>
-        {activeTab === "items" && <label>Item type<select value={itemTypeFilter} onChange={event => updateUrl("type",event.target.value)}><option value="ALL">All items</option><option value="WEAPON">Weapons</option><option value="ARMOR">Armor</option><option value="GEAR">Gear</option><option value="MAGIC">Magic</option></select></label>}
+        {activeTab === "items" && <label>Item type<select value={itemTypeFilter} onChange={event => updateUrl("type",event.target.value)}><option value="ALL">All items</option>{EQUIPMENT_TYPES.map(type => <option key={type} value={type}>{typeName(type)}</option>)}</select></label>}
         {activeTab === "talents" && <label>Talent type<select value={talentTypeFilter} onChange={event => updateUrl("talent",event.target.value)}><option value="ALL">All talents</option><option value="GENERAL">General</option><option value="ARCHETYPE">Archetype</option></select></label>}
-        {(query || itemTypeFilter !== "ALL" || talentTypeFilter !== "ALL") && <button type="button" className="ledger-button" onClick={() => {const next = new URLSearchParams(window.location.search); for (const key of ["q","type","talent"]) next.delete(key);window.history.replaceState(null,"","/compendium?"+next.toString());}}>Clear Filters</button>}
+        {activeTab === "skills" && <label>Attribute<select className="capitalize" value={attributeFilter} onChange={event => updateUrl("attribute",event.target.value)}><option value="ALL">All attributes</option>{ATTRIBUTE_KEYS.map(key=><option key={key} value={key}>{key[0].toUpperCase()+key.slice(1)}</option>)}</select></label>}
+        {(query || itemTypeFilter !== "ALL" || talentTypeFilter !== "ALL" || attributeFilter !== "ALL") && <button type="button" className="ledger-button" onClick={() => {const next = new URLSearchParams(window.location.search); for (const key of ["q","type","talent","attribute"]) next.delete(key);window.history.replaceState(null,"","/compendium?"+next.toString());}}>Clear Filters</button>}
       </div>
 
       <nav className="ledger-tabs" aria-label="Compendium categories">
@@ -173,6 +183,7 @@ export default function CompendiumClient({
         </section>
       ) : null}
 
+      {activeTab === "skills" && <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filteredSkills.map(skill=><article key={skill.key} className="ledger-panel p-5"><h2 className="text-xl font-bold mb-3">{skill.name}</h2><SkillDetails skill={skill}/></article>)}</section>}
       {activeTab === "items" ? (
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredItems.map((item) => (
@@ -180,17 +191,10 @@ export default function CompendiumClient({
               <div className="flex items-start justify-between gap-2">
                 <h2 className="text-lg font-bold text-[var(--ledger-ink)]">{item.name}</h2>
                 <span className="rounded-full bg-[var(--ledger-paper-deep)] px-2 py-1 text-xs font-semibold text-[var(--ledger-ink)]">
-                  {item.type}
+                  {typeName(item.type)}
                 </span>
               </div>
-              <p className="mt-2 text-sm text-[var(--ledger-ink)]">{item.description || "No description."}</p>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--ledger-ink-soft)]">
-                <span>Bonus +{item.bonus}</span>
-                <span>Availability {item.availability}</span>
-                {item.damage !== null ? <span>Damage {item.damage}</span> : null}
-                {item.range ? <span>Range {item.range}</span> : null}
-                {item.skill ? <span>Skill {item.skill}</span> : null}
-              </div>
+              <div className="mt-3"><EquipmentDetails item={item} /></div>
             </article>
           ))}
           {filteredItems.length === 0 ? <p className="text-sm text-[var(--ledger-ink-soft)]">No items match this filter.</p> : null}
@@ -219,6 +223,7 @@ export default function CompendiumClient({
           {filteredArchetypes.map((archetype) => (
             <article key={archetype.id} className="rounded-sm border border-[var(--ledger-line)]/55 bg-[var(--ledger-surface-strong)] p-5">
               <h2 className="text-lg font-bold text-[var(--ledger-ink)]">{archetype.name}</h2>
+              {archetype.sourceBook && <p className="mt-2 text-xs text-[var(--ledger-ink-soft)]">{archetype.sourceBook}, p. {archetype.sourcePage}</p>}
               {archetype.flavorText && <p className="mt-3 italic whitespace-pre-wrap leading-relaxed">{archetype.flavorText}</p>}
               <p className="mt-2 text-sm text-[var(--ledger-ink)]">Main Attribute: {archetype.mainAttribute}</p>
               <p className="text-sm text-[var(--ledger-ink)]">Main Skill: {archetype.mainSkill}</p>

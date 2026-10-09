@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ItemType, TalentType } from "@prisma/client";
+import { TalentType } from "@prisma/client";
+import { equipmentBonusLabel, profilesFor, type EquipmentItem } from "@/lib/equipment";
+import EquipmentDetails from "@/components/equipment-details";
 import {
   updateCharacterConditions,
   updateCharacterExperience,
@@ -9,6 +11,9 @@ import {
 } from "@/app/characters/actions";
 import { cn } from "@/lib/utils";
 import DiceRollerModal from "@/components/dice-roller-modal";
+import CharacterAdvancement from "@/components/character-advancement";
+import type { AdvancementEntry } from "@/lib/advancement-rules";
+import { useRouter } from "next/navigation";
 
 type ConditionState = Record<string, boolean>;
 
@@ -54,17 +59,7 @@ type InventoryEntry = {
   id: string;
   quantity: number;
   notes: string | null;
-  item: {
-    id: string;
-    name: string;
-    type: ItemType;
-    description: string | null;
-    bonus: number;
-    availability: number;
-    damage: number | null;
-    range: string | null;
-    skill: string | null;
-  };
+  item: EquipmentItem;
 };
 
 type CharacterSheetProps = {
@@ -83,6 +78,11 @@ type CharacterSheetProps = {
   notes: string;
   relationships: string;
   experiencePoints: number;
+  experienceVersion: number;
+  advancementHistory: AdvancementEntry[];
+  hasMoreAdvancements: boolean;
+  availableTalents: TalentSummary[];
+  hasSkillRecord: boolean;
   physicalConditions: ConditionState;
   mentalConditions: ConditionState;
   attributes: Attributes;
@@ -261,10 +261,15 @@ export default function CharacterSheet(props: CharacterSheetProps) {
   const [physicalConditions, setPhysicalConditions] = useState<ConditionState>(props.physicalConditions);
   const [mentalConditions, setMentalConditions] = useState<ConditionState>(props.mentalConditions);
   const [experiencePoints, setExperiencePoints] = useState<number>(props.experiencePoints);
+  const [experienceVersion, setExperienceVersion] = useState(props.experienceVersion);
+  const [advancementBusy, setAdvancementBusy] = useState(false);
+  const router = useRouter();
+  useEffect(() => { setExperiencePoints(props.experiencePoints); setExperienceVersion(props.experienceVersion); }, [props.experiencePoints, props.experienceVersion]);
   const [notes, setNotes] = useState<string>(props.notes);
   const [relationships, setRelationships] = useState<string>(props.relationships);
   const [selectedSkill, setSelectedSkill] = useState<SkillKey>("agility");
   const [itemBonus, setItemBonus] = useState<number>(0);
+  const [selectedEquipment, setSelectedEquipment] = useState("");
   const [advantages, setAdvantages] = useState<number>(0);
 
   const [conditionSaving, setConditionSaving] = useState(false);
@@ -299,7 +304,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
   }, [canEdit, journalKey, props.notes, props.relationships]);
 
   const groupedInventory = useMemo(() => {
-    const weapons = inventory.filter((entry) => entry.item.type === "WEAPON");
+    const weapons = inventory.flatMap(entry => profilesFor(entry.item).filter(profile => profile.kind === "ATTACK").map(profile => ({ ...entry, profile })));
     const armor = inventory.filter((entry) => entry.item.type === "ARMOR");
     const equipment = inventory.filter(
       (entry) => entry.item.type === "GEAR" || entry.item.type === "MAGIC"
@@ -350,20 +355,19 @@ export default function CharacterSheet(props: CharacterSheetProps) {
   }
 
   async function handleXpToggle(slot: number) {
-    if (!canEdit || xpSaving) {
+    if (!canEdit || xpSaving || advancementBusy) {
       return;
     }
 
     const nextXp = slot < experiencePoints ? slot : slot + 1;
-    setExperiencePoints(nextXp);
-
     setXpSaving(true);
     setMutationError("");
     try {
-      await updateCharacterExperience(characterId, nextXp);
+      const result = await updateCharacterExperience(characterId, nextXp, experienceVersion);
+      setExperiencePoints(result.experiencePoints); setExperienceVersion(result.experienceVersion);
     } catch {
-      setExperiencePoints(experiencePoints);
-      setMutationError("Experience could not be saved. Please try again.");
+      setMutationError("Experience could not be saved. The sheet may have changed; refresh and try again.");
+      router.refresh();
     } finally {
       setXpSaving(false);
     }
@@ -420,8 +424,13 @@ export default function CharacterSheet(props: CharacterSheetProps) {
     SKILL_DEFINITIONS.find((entry) => entry.key === selectedSkill) ?? SKILL_DEFINITIONS[0];
   const attributeValue = attributes[selectedSkillDefinition.attribute];
   const skillValue = skills[selectedSkillDefinition.key];
+  const usableProfiles = inventory.flatMap(entry => profilesFor(entry.item)
+    .filter(profile => profile.kind !== "NARRATIVE" && profile.skills.includes(selectedSkill) && profile.bonus !== 0)
+    .map(profile => ({ key: `${entry.id}:${profile.id}`, name: `${entry.item.name}: ${profile.label}`, profile })));
   const conditionPenalty = selectedSkillDefinition.domain === "physical" ? physicalLoad : mentalLoad;
-  const dicePool = Math.max(0, attributeValue + skillValue + itemBonus + advantages - conditionPenalty);
+  const selectedProfile = usableProfiles.find(entry => entry.key === selectedEquipment);
+  const appliedItemBonus = selectedProfile?.profile.bonus ?? itemBonus;
+  const dicePool = Math.max(0, attributeValue + skillValue + appliedItemBonus + advantages - conditionPenalty);
   const relationshipLines = splitRelationshipLines(relationships);
 
   return (
@@ -461,7 +470,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                   <button
                     key={index}
                     type="button"
-                    disabled={!canEdit || xpSaving || experiencePoints > MAX_XP_TRACKER}
+                    disabled={!canEdit || xpSaving || advancementBusy || experiencePoints > MAX_XP_TRACKER}
                     onClick={() => handleXpToggle(index)}
                     className={cn("ledger-xp-mark", index < experiencePoints && "is-filled")}
                     aria-label={`Experience slot ${index + 1}`}
@@ -473,6 +482,10 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                 {experiencePoints} unspent XP{experiencePoints > MAX_XP_TRACKER ? ' (above the checkbox tracker; no XP is discarded)' : `/${MAX_XP_TRACKER}`}
                 {xpSaving ? " saving..." : ""}
               </p>
+              <CharacterAdvancement characterId={characterId} canEdit={canEdit} experiencePoints={experiencePoints} experienceVersion={experienceVersion}
+                skills={skills} hasSkillRecord={props.hasSkillRecord} availableTalents={props.availableTalents}
+                history={props.advancementHistory} hasMore={props.hasMoreAdvancements} disabled={xpSaving || advancementBusy}
+                onBusy={setAdvancementBusy} onUpdated={(xp, version) => { setExperiencePoints(xp); setExperienceVersion(version); }} />
             </div>
           </div>
         </div>
@@ -543,7 +556,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                   columns={["Item", "Bonus"]}
                   rows={groupedInventory.personalGear.map((entry) => [
                     `${entry.item.name}${entry.quantity > 1 ? ` x${entry.quantity}` : ""}`,
-                    entry.item.bonus > 0 ? `+${entry.item.bonus}` : `${entry.item.bonus}`,
+                    equipmentBonusLabel(entry.item),
                   ])}
                   emptyLabel="No personal gear recorded."
                 />
@@ -690,8 +703,8 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                       <span>Item Bonus</span>
                       <input
                         type="number"
-                        value={itemBonus}
-                        onChange={(event) => setItemBonus(Number(event.target.value) || 0)}
+                        value={appliedItemBonus}
+                        onChange={(event) => { setSelectedEquipment(""); setItemBonus(Number(event.target.value) || 0); }}
                         className="ledger-input"
                       />
                     </label>
@@ -708,14 +721,16 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                   </div>
 
                   <p className="ledger-helper-copy">Tap a skill for a quick roll including conditions. Use this builder for gear and advantages.</p>
-                  {inventory.some(entry => entry.item.bonus !== 0) && <label className="ledger-input-group"><span>Use an inventory bonus</span>
-                    <select className="ledger-input" defaultValue="" onChange={event => setItemBonus(inventory.find(entry => entry.id === event.target.value)?.item.bonus ?? 0)}>
-                      <option value="">No item bonus</option>
-                      {inventory.filter(entry => entry.item.bonus !== 0).map(entry => <option key={entry.id} value={entry.id}>{entry.item.name} ({entry.item.bonus > 0 ? "+" : ""}{entry.item.bonus}){entry.item.skill ? ` - ${entry.item.skill}` : ""}</option>)}
+                  <label className="ledger-input-group"><span>Use applicable equipment</span>
+                    <select className="ledger-input" value={selectedEquipment} onChange={event => setSelectedEquipment(event.target.value)}>
+                      <option value="">No equipment selected</option>
+                      {usableProfiles.map(entry => <option key={entry.key} value={entry.key}>{entry.name} ({entry.profile.bonus >= 0 ? "+" : ""}{entry.profile.bonus})</option>)}
                     </select>
-                    <small className="ledger-helper-copy">Use only equipment applicable to this check; the GM decides.</small>
-                  </label>}
+                    {selectedProfile && <small className="ledger-helper-copy">{selectedProfile.profile.effect} {selectedProfile.profile.requirements}</small>}
+                    <small className="ledger-helper-copy">Choose one applicable profile; the GM confirms its context. Armor penalties require worn-armor tracking and are not automatically applied here.</small>
+                  </label>
                   <div className="ledger-helper-copy space-y-1">
+                    <a href={`/compendium?tab=skills&q=${encodeURIComponent(selectedSkillDefinition.label)}`} target="_blank" rel="noopener noreferrer" className="underline">Read {selectedSkillDefinition.label} rules</a>
                     <p>Dice Pool = Attribute + Skill + Item Bonus + Advantages - Conditions</p>
                     <p>
                       {selectedSkillDefinition.attribute}: {attributeValue} / skill: {skillValue} / condition penalty: -
@@ -735,6 +750,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
               </div>
             </div>
 
+            {inventory.length > 0 && <details className="ledger-panel p-4"><summary className="font-bold cursor-pointer">Equipment Uses &amp; Requirements</summary><div className="mt-3 grid gap-4 sm:grid-cols-2">{inventory.map(entry => <article key={entry.id} className="ledger-panel p-3"><h3 className="font-bold">{entry.item.name}</h3><EquipmentDetails item={entry.item} /></article>)}</div></details>}
             <div id="sheet-equipment" className="grid gap-4 xl:grid-cols-2">
               <div className="ledger-panel">
                 <SectionBar title="Temporary Gear" />
@@ -743,7 +759,7 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                     columns={["Item", "Bonus"]}
                     rows={groupedInventory.temporaryGear.map((entry) => [
                       `${entry.item.name}${entry.quantity > 1 ? ` x${entry.quantity}` : ""}`,
-                      entry.item.bonus > 0 ? `+${entry.item.bonus}` : `${entry.item.bonus}`,
+                      equipmentBonusLabel(entry.item),
                     ])}
                     emptyLabel="Mark temporary gear by adding 'temporary' in its inventory notes."
                   />
@@ -758,9 +774,9 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                       columns={["Weapon", "Damage", "Range", "Bonus"]}
                       rows={groupedInventory.weapons.map((entry) => [
                         `${entry.item.name}${entry.quantity > 1 ? ` x${entry.quantity}` : ""}`,
-                        entry.item.damage !== null ? `${entry.item.damage}` : "-",
-                        entry.item.range || "-",
-                        entry.item.bonus > 0 ? `+${entry.item.bonus}` : `${entry.item.bonus}`,
+                        entry.profile.damage !== null ? `${entry.profile.damage}` : "-",
+                        entry.profile.rangeMin === null ? entry.item.range || "Needs review" : `${entry.profile.rangeMin}${entry.profile.rangeMax === entry.profile.rangeMin ? "" : `-${entry.profile.rangeMax}`}`,
+                        entry.profile.bonus > 0 ? `+${entry.profile.bonus}` : `${entry.profile.bonus}`,
                       ])}
                       emptyLabel="No weapons assigned."
                     />
@@ -774,8 +790,8 @@ export default function CharacterSheet(props: CharacterSheetProps) {
                       columns={["Type", "Protection", "Agility"]}
                       rows={groupedInventory.armor.map((entry) => [
                         `${entry.item.name}${entry.quantity > 1 ? ` x${entry.quantity}` : ""}`,
-                        entry.item.bonus > 0 ? `+${entry.item.bonus}` : `${entry.item.bonus}`,
-                        entry.notes || "-",
+                        entry.item.protection !== null ? `${entry.item.protection}d6` : "Needs review",
+                        entry.item.agilityPenalty !== null ? `-${entry.item.agilityPenalty}` : "Needs review",
                       ])}
                       emptyLabel="No armor assigned."
                     />

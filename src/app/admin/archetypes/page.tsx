@@ -1,3 +1,4 @@
+import { CARRIED_TYPES } from "@/lib/equipment";
 import { requireAdminSession } from "@/lib/access";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
@@ -22,7 +23,7 @@ export default async function ArchetypesPage({
   const editingId = query.id;
   const editingArchetype = editingId ? await prisma.archetype.findUnique({ where: { id: editingId }, include: archetypeTemplateInclude }) : null;
   const talents = isCreating || editingId ? await prisma.talent.findMany({ orderBy: { name: "asc" } }) : [];
-  const items = isCreating || editingId ? await prisma.item.findMany({ where: { type: { not: "MAGIC" } }, orderBy: { name: "asc" } }) : [];
+  const items = isCreating || editingId ? await prisma.item.findMany({ where: { type: { in: [...CARRIED_TYPES] } }, orderBy: { name: "asc" } }) : [];
 
   async function handleDelete(data: FormData) {
     "use server";

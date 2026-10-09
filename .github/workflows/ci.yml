@@ -19,6 +19,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:test-only-password@localhost:5432/vaesen_test?schema=public
       TEST_DATABASE_URL: postgresql://postgres:test-only-password@localhost:5432/vaesen_test?schema=public
+      CONTENT_TEST_DATABASE_URL: postgresql://postgres:test-only-password@localhost:5432/vaesen_academic_test?schema=public
+      CORE_CONTENT_TEST_DATABASE_URL: postgresql://postgres:test-only-password@localhost:5432/vaesen_core_test?schema=public
       NEXTAUTH_SECRET: ci-only-secret-not-used-for-deployment-123456
       NEXTAUTH_URL: http://localhost:3000
     steps:
@@ -31,6 +33,11 @@ jobs:
       - run: npx prisma generate
       - run: npx prisma validate
       - run: npx prisma migrate deploy
+      - name: Prepare Content Import Databases
+        run: |
+          node -e 'const {createPrismaClient}=require("./prisma/client"); const p=createPrismaClient(); (async()=>{for(const name of ["vaesen_academic_test","vaesen_core_test"])await p.$executeRawUnsafe("CREATE DATABASE "+name);})().finally(()=>p.$disconnect());'
+          DATABASE_URL="$CONTENT_TEST_DATABASE_URL" npx prisma migrate deploy
+          DATABASE_URL="$CORE_CONTENT_TEST_DATABASE_URL" npx prisma migrate deploy
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test

@@ -3,11 +3,23 @@
 import prisma from "@/lib/prisma";
 import { getAppSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { ItemType, Role, TalentType, Prisma } from "@prisma/client";
+import { Role, TalentType, Prisma } from "@prisma/client";
+import { saveEquipment } from "@/lib/equipment-service";
 import bcrypt from "bcryptjs";
 import { publicUserSelect } from "@/lib/security";
 import { passwordSchema, userProfileSchema } from "@/lib/user-validation";
 import { saveArchetypeTemplate } from "@/lib/archetype-service";
+import { skillReferenceSchema, SKILL_ATTRIBUTES } from "@/lib/skill-reference";
+import { skillName } from "@/lib/equipment";
+
+export async function saveSkillReference(input: unknown) {
+  await requireAdmin();
+  const data = skillReferenceSchema.parse(input);
+  const record = { ...data, name: skillName(data.key), attribute: SKILL_ATTRIBUTES[data.key] };
+  const saved = await prisma.skillDefinition.upsert({ where: { key: data.key }, create: record, update: record });
+  revalidatePath("/admin/skills"); revalidatePath("/compendium");
+  return saved;
+}
 
 async function requireAdmin() {
   const session = await getAppSession();
@@ -73,19 +85,19 @@ export async function deleteTalent(id: string) {
 
 // ------ ITEMS ------ //
 
-export async function createItem(data: { name: string; description: string; bonus: number; availability: number; type: ItemType; damage?: number | null; range?: string | null; skill?: string | null }) {
+export async function createItem(data: unknown) {
   await requireAdmin();
-  data = { ...data, skill: data.skill || null, range: data.range || null };
-  const created = await prisma.item.create({ data });
+  const created = await saveEquipment(data);
   revalidatePath("/admin/items");
+  revalidatePath("/compendium"); revalidatePath("/characters", "layout"); revalidatePath("/parties", "layout");
   return created;
 }
 
-export async function updateItem(id: string, data: { name: string; description: string; bonus: number; availability: number; type: ItemType; damage?: number | null; range?: string | null; skill?: string | null }) {
+export async function updateItem(id: string, data: unknown) {
   await requireAdmin();
-  data = { ...data, skill: data.skill || null, range: data.range || null };
-  const updated = await prisma.item.update({ where: { id }, data });
+  const updated = await saveEquipment(data, id);
   revalidatePath("/admin/items");
+  revalidatePath("/compendium"); revalidatePath("/characters", "layout"); revalidatePath("/parties", "layout");
   return updated;
 }
 

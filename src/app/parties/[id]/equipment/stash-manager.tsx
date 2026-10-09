@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ItemType } from "@prisma/client";
+import { CARRIED_TYPES } from "@/lib/equipment";
 import { removePartyStashItem, upsertPartyStashItem } from "../../actions";
 
 type ItemOption = {
@@ -26,6 +27,9 @@ const TYPE_LABELS: Record<ItemType, string> = {
   ARMOR: "Armor",
   GEAR: "Equipment",
   MAGIC: "Special",
+  SERVICE: "Services",
+  COVER: "Cover",
+  ATTACK: "Attack references",
 };
 
 export default function StashManager({
@@ -46,7 +50,7 @@ export default function StashManager({
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const grouped = useMemo(() => {
-    return Object.values(ItemType).map((type) => ({
+    return CARRIED_TYPES.map((type) => ({
       type,
       label: TYPE_LABELS[type],
       entries: stashItems.filter((entry) => entry.item.type === type),

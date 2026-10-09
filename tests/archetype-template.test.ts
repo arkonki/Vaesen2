@@ -4,11 +4,12 @@ import { archetypeTemplateSchema, defaultEquipmentChoices, resolveStartingEquipm
 import { firstIncompleteStep, initialState, restoreCharacterDraft } from "../src/lib/character-draft";
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
-const item: Item = { id:uuid(2), name:"Book collection", type:"GEAR", description:null, bonus:0, availability:0, damage:null, range:null, skill:null };
+const item: Item = { bookKey:null, sourceBook:null, sourcePage:null, protection:null, agilityPenalty:null, doses:null, toxicity:null, id:uuid(2), name:"Book collection", type:"GEAR", description:null, bonus:0, availability:0, damage:null, range:null, skill:null };
 const map = {...item,id:uuid(3),name:"Map book"};
-const talent: Talent = {id:uuid(4),name:"Bookworm",description:"Test",type:"GENERAL",archetypeId:null};
+const talent: Talent = { bookKey:null,id:uuid(4),name:"Bookworm",description:"Test",type:"GENERAL",archetypeId:null};
 const fields = {name:"Academic",mainAttribute:"logic",mainSkill:"learning",startingResourcesMin:4,startingResourcesMax:6};
 const archetype: ArchetypeTemplate = {
+  bookKey:null,sourceBook:null,sourcePage:null,
   ...fields,id:uuid(1),flavorText:"A scholar of the unseen.",firstNameOptions:["Astrid"],lastNameOptions:["Brugge"],
   motivationOptions:["Charting the unknown"],traumaOptions:["A mermaid's magic"],darkSecretOptions:["Hunted"],relationshipOptions:["A good friend"],
   startingTalents:[{talentId:talent.id,talent}],

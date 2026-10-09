@@ -1,0 +1,34 @@
+{
+  "source": { "title": "Vaesen: Nordic Horror Roleplaying", "pages": [26, 50, 75], "note": "Talent and equipment effects are paraphrased; flavor and suggestions follow the supplied archetype example." },
+  "archetype": {
+    "name": "Academic",
+    "mainAttribute": "logic",
+    "mainSkill": "learning",
+    "startingResourcesMin": 4,
+    "startingResourcesMax": 6,
+    "flavorText": "We all agreed that it was theoretically possible to give those who are not verum videntes, or so-called Thursday's Children, the ability to see vaesen. The others quickly forgot our discussion. For me, the issue became an obsession. And not only a theoretical one. If people around us could see the truth, we would become the leaders of the new world. A text written by a Sufi philosopher from Kottayam mentioned a dark fluid which, after translation, was called Black Mud. Drinking it causes creatures to emerge. I had to sell much of my mother's jewelry to have a merchant bring a jar of said mud back to Upsala. And now, here it is, on the desk before me.",
+    "firstNameOptions": ["Albert", "Astrid", "Elin", "Isaac", "Louis", "Praskoviya"],
+    "lastNameOptions": ["Brugge", "Gregorius", "Taaltinen"],
+    "motivationOptions": ["Charting the unknown", "Proving my critics wrong", "Becoming famous"],
+    "traumaOptions": ["Vaettir turned you into a rat", "Aged by the magic of a mermaid", "Watched your partner being torn apart by a giant"],
+    "darkSecretOptions": ["Addicted to drugs", "Stole or falsified documents to get research results", "Hunted by a vaesen"],
+    "relationshipOptions": ["A tool for my purposes", "I cannot stay calm in your presence", "A good friend"]
+  },
+  "talents": [
+    { "name": "Bookworm", "description": "Add +2 to Learning when searching books or libraries for clues." },
+    { "name": "Erudite", "description": "A successful Learning test lets you establish facts about a place or phenomenon. The GM decides what is appropriate and reasonably within your knowledge. This cannot establish facts about vaesen." },
+    { "name": "Knowledge is Reassuring", "description": "Condition penalties do not apply to your Learning tests." }
+  ],
+  "items": [
+    { "name": "Book collection", "description": "Provides +1 to Learning when consulting the collection for information.", "type": "GEAR", "bonus": 1, "availability": 2, "skill": "Learning", "damage": null, "range": null },
+    { "name": "Map book", "description": "Provides +1 to Investigation or Learning when using maps to navigate.", "type": "GEAR", "bonus": 1, "availability": 2, "skill": "Investigation, Learning", "damage": null, "range": null },
+    { "name": "Writing utensils and paper", "description": "Provides +1 to Investigation when taking notes.", "type": "GEAR", "bonus": 1, "availability": 1, "skill": "Investigation", "damage": null, "range": null },
+    { "name": "Liquor", "description": "Provides +1 to Inspiration when using alcohol to inspire others.", "type": "GEAR", "bonus": 1, "availability": 1, "skill": "Inspiration", "damage": null, "range": null },
+    { "name": "Slide rule", "description": "Provides +1 to Learning when performing calculations.", "type": "GEAR", "bonus": 1, "availability": 2, "skill": "Learning", "damage": null, "range": null }
+  ],
+  "equipmentGroups": [
+    { "label": "Book collection or map book", "quantity": 1, "items": ["Book collection", "Map book"] },
+    { "label": "Writing utensils and paper", "quantity": 1, "items": ["Writing utensils and paper"] },
+    { "label": "Liquor or slide rule", "quantity": 1, "items": ["Liquor", "Slide rule"] }
+  ]
+}

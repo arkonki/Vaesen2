@@ -1,10 +1,11 @@
+import { canCarryItem, equipmentInclude } from "./equipment";
 import type { Archetype, Item, Talent } from "@prisma/client";
 import { z } from "zod";
 import { ATTRIBUTE_KEYS, SKILL_KEYS } from "./character-rules";
 
 export const archetypeTemplateInclude = {
   startingTalents: { include: { talent: true } },
-  equipmentGroups: { orderBy: { position: "asc" as const }, include: { options: { include: { item: true } } } },
+  equipmentGroups: { orderBy: { position: "asc" as const }, include: { options: { include: { item: { include: equipmentInclude } } } } },
 } as const;
 
 export type ArchetypeTemplate = Archetype & {
@@ -61,7 +62,7 @@ export function resolveStartingEquipment(archetype: ArchetypeTemplate, choices: 
   const quantities = new Map<string, number>();
   for (const group of groups) {
     const itemId = choices[group.id] || (group.options.length === 1 ? group.options[0].itemId : "");
-    if (!group.options.some(option => option.itemId === itemId && option.item.type !== "MAGIC")) {
+    if (!group.options.some(option => option.itemId === itemId && canCarryItem(option.item))) {
       throw new Error(`Choose one item for ${group.label}`);
     }
     quantities.set(itemId, (quantities.get(itemId) ?? 0) + group.quantity);

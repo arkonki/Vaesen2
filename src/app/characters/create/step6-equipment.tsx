@@ -1,6 +1,15 @@
-import type { Item } from "@prisma/client";
+import { type EquipmentItem, canCarryItem } from "@/lib/equipment";
+import CatalogueDetails from "@/components/equipment-details";
+type Item = EquipmentItem;
 import type { WizardStepProps } from "./wizard";
 import { resolveStartingEquipment, type ArchetypeTemplate } from "@/lib/archetype-template";
+
+function EquipmentDetails({ item, included = false }: { item: Item; included?: boolean }) {
+  return <div className="block space-y-1 min-w-0">
+    <span className="block font-bold">{item.name}{included ? " - included" : ""}</span>
+    <CatalogueDetails item={item} />
+  </div>;
+}
 
 export default function Step6Equipment({ data, update, items, archetype, onSubmit, onPrev, loading }: Omit<WizardStepProps, "onNext"> & { items: Item[]; archetype?: ArchetypeTemplate; onSubmit: () => void; loading: boolean }) {
   const groups = archetype?.equipmentGroups ?? [];
@@ -16,7 +25,7 @@ export default function Step6Equipment({ data, update, items, archetype, onSubmi
     }
   };
 
-  const gearItems = items.filter((i) => i.type === 'GEAR');
+  const gearItems = items.filter((i) => canCarryItem(i) && i.type === 'GEAR');
   const weaponItems = items.filter((i) => i.type === 'WEAPON');
   const armorItems = items.filter((i) => i.type === 'ARMOR');
 
@@ -25,11 +34,12 @@ export default function Step6Equipment({ data, update, items, archetype, onSubmi
       <div>
         <h2 className="text-2xl font-bold text-[var(--ledger-ink)] mb-2">Starting Equipment</h2>
         <p className="text-[var(--ledger-ink-soft)]">{groups.length ? "Take the fixed equipment and choose one option from each alternative group." : "No starting equipment template is configured. Select non-magical gear with your GM's approval."}</p>
+        {groups.length > 0 && <p className="mt-2 text-sm text-[var(--ledger-ink-soft)]">Equipment bonuses apply only when the item helps with the described task. They are not added automatically to every skill roll.</p>}
       </div>
 
       {groups.length ? <div className="space-y-4">{groups.map(group => <fieldset key={group.id} className="ledger-panel p-4 min-w-0"><legend className="px-2 font-bold">{group.label} (x{group.quantity})</legend>
-        {group.options.length === 1 ? <p>{group.options[0].item.name} - included</p> : <div className="grid gap-3 sm:grid-cols-2">{group.options.map(option => <label key={option.itemId} className="flex items-center gap-3 border border-[var(--ledger-line)] p-3">
-          <input type="radio" name={`equipment-${group.id}`} checked={data.equipmentChoices[group.id] === option.itemId} onChange={() => update({ equipmentChoices: { ...data.equipmentChoices, [group.id]: option.itemId } })} /><span>{option.item.name}</span>
+        {group.options.length === 1 ? <EquipmentDetails item={group.options[0].item} included /> : <div className="grid gap-3 sm:grid-cols-2">{group.options.map(option => <label key={option.itemId} className="flex items-start gap-3 border border-[var(--ledger-line)] p-3 min-w-0">
+          <input type="radio" aria-label={option.item.name} className="mt-1 shrink-0" name={`equipment-${group.id}`} checked={data.equipmentChoices[group.id] === option.itemId} onChange={() => update({ equipmentChoices: { ...data.equipmentChoices, [group.id]: option.itemId } })} /><EquipmentDetails item={option.item} />
         </label>)}</div>}
       </fieldset>)}</div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
         {/* Weapons */}

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAppSession } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { equipmentInclude, CARRIED_TYPES } from "@/lib/equipment";
 import Wizard from "./wizard";
 import { archetypeTemplateInclude } from "@/lib/archetype-template";
 
@@ -14,7 +15,7 @@ export default async function CreateCharacterPage() {
   // Fetch all necessary data for the wizard steps
   const archetypes = await prisma.archetype.findMany({ include: archetypeTemplateInclude, orderBy: { name: "asc" } });
   const talents = await prisma.talent.findMany();
-  const items = await prisma.item.findMany();
+  const items = await prisma.item.findMany({ where: { type: { in: [...CARRIED_TYPES] } }, include: equipmentInclude });
 
   return (
     <div className="min-h-screen bg-[var(--ledger-paper)] text-[var(--ledger-ink)] py-6 px-4 sm:px-6 lg:px-8 font-sans">

@@ -7,7 +7,7 @@ export function safeCallbackPath(value: string | null | undefined) {
   } catch { return "/"; }
 }
 
-export const COMPENDIUM_TABS = ["rules", "items", "talents", "archetypes", "npcs", "vaesen"] as const;
+export const COMPENDIUM_TABS = ["rules", "skills", "items", "talents", "archetypes", "npcs", "vaesen"] as const;
 export type CompendiumTab = typeof COMPENDIUM_TABS[number];
 export function compendiumTab(value: string | null, canViewGmContent: boolean): CompendiumTab {
   return COMPENDIUM_TABS.includes(value as CompendiumTab) && (canViewGmContent || !["npcs", "vaesen"].includes(value!)) ? value as CompendiumTab : "rules";

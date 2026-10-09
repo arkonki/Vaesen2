@@ -51,6 +51,7 @@ export default function Step4Skills({ data, update, onNext, onPrev }: WizardStep
           Distribute {skillAllowance} points. Skills cap at 2 (Main Skill: {mainSkill.toUpperCase()} at 3).
           You can also increase your starting Resources (max {maxResources}).
         </p>
+        <a href="/compendium?tab=skills" target="_blank" rel="noopener noreferrer" className="ledger-button mt-3">Open Skill Reference</a>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6">

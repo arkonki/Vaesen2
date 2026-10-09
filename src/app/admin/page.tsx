@@ -3,6 +3,7 @@ import PageMasthead from "@/components/page-masthead";
 const sections = [
   ["users", "Users & Access", "Create accounts, assign roles, and manage access to the Society."],
   ["archetypes", "Archetypes", "Define hunter archetypes and their starting attributes, skills, and resources."],
+  ["skills", "Skills", "Edit skill explanations, extra successes, requirements, and source references."],
   ["items", "Items & Gear", "Manage weapons, armor, equipment, and their game statistics."],
   ["talents", "Talents", "Maintain general abilities and archetype-specific talents."],
   ["npcs", "NPCs", "Keep the GM-only cast of allies, rivals, and strangers."],

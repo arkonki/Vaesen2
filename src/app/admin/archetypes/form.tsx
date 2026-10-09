@@ -1,5 +1,6 @@
 "use client";
 
+import { canCarryItem } from "@/lib/equipment";
 import type { Item, Talent } from "@prisma/client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -98,7 +99,7 @@ export default function ArchetypeForm({ archetype, talents, items }: { archetype
           </div>
           {group.itemIds.map((itemId, optionIndex) => <div key={optionIndex} className="flex flex-wrap gap-2 items-end">
             <label className="flex-1 min-w-0">Option {optionIndex + 1}<select required value={itemId} onChange={event => updateGroup(index, { itemIds: group.itemIds.map((id, position) => position === optionIndex ? event.target.value : id) })} className={inputClass}>
-              <option value="">Choose an item</option>{items.filter(item => item.type !== "MAGIC").map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+              <option value="">Choose an item</option>{items.filter(canCarryItem).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select></label>
             <button type="button" aria-label={`Remove option ${optionIndex + 1} from group ${index + 1}`} className="ledger-button" onClick={() => updateGroup(index, { itemIds: group.itemIds.filter((_, position) => position !== optionIndex) })}>Remove</button>
           </div>)}
