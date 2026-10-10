@@ -42,14 +42,19 @@ try {
   users.push(admin.id);
   const player = await prisma.user.create({ data: { email: `${prefix}-player@test.local`, name: "Smoke Player", role: "PLAYER", passwordHash: hash } });
   users.push(player.id);
+  const gm = await prisma.user.create({ data: { email: `${prefix}-gm@test.local`, name: "Smoke GM", role: "GM", passwordHash: hash } });
+  users.push(gm.id);
+  const outsider = await prisma.user.create({ data: { email: `${prefix}-outsider@test.local`, name: "Smoke Outsider", role: "GM", passwordHash: hash } });
+  users.push(outsider.id);
   const archetype = await prisma.archetype.create({ data: { name: prefix, mainAttribute: "logic", mainSkill: "learning" } });
   content.archetype = archetype.id;
   const character = await prisma.character.create({ data: {
     userId: player.id, archetypeId: archetype.id, name: prefix, ageGroup: "YOUNG", motivation: "Truth", trauma: "Sight",
     darkSecret: `${prefix}-private-secret`, notes: `${prefix}-private-notes`,
   } });
+  await prisma.archetype.update({ where: { id: archetype.id }, data: { archivedAt: new Date(), revision: { increment: 1 } } });
   const party = await prisma.party.create({ data: {
-    name: prefix, gmId: admin.id, notes: '<p onclick="evil()">Safe shared notes<script>evil()</script></p>',
+    name: prefix, gmId: gm.id, notes: '<p onclick="evil()">Safe shared notes<script>evil()</script></p>',
     members: { create: { characterId: character.id } },
     headquarters: { create: {
       name: prefix, history: "Test", threats: [{ description: `${prefix}-private-threat` }],
@@ -64,7 +69,7 @@ try {
     ] },
   } });
   const anonymous = client();
-  for (const route of ["/", "/characters", "/parties", "/compendium", "/admin"]) {
+  for (const route of ["/", "/characters", `/characters/${character.id}`, "/parties", "/compendium", "/admin"]) {
     const response = await anonymous(route);
     const location = new URL(response.headers.get("location") || "", base);
     assert.equal(location.origin, new URL(process.env.NEXTAUTH_URL || base).origin, `Wrong public redirect origin for ${route}`);
@@ -107,6 +112,28 @@ try {
   assert.ok(!notes.includes("Save Notes"));
   assert.ok(!notes.includes("evil()"));
   const compendium = await (await playerRequest("/compendium")).text();
+  assert.ok(!compendium.includes(archetype.id), "Compendium included an archived archetype");
+  const wizard = await (await playerRequest("/characters/create")).text();
+  assert.ok(!wizard.includes(archetype.id), "Wizard included an archived archetype");
+  const sheet = await playerRequest(`/characters/${character.id}`);
+  assert.equal(sheet.status, 200);
+  const sheetText = await sheet.text();
+  assert.ok(sheetText.includes("Archived template"), "Existing character did not retain its archived template");
+  for (const tab of ["play", "equipment", "background", "notes"]) assert.ok(sheetText.includes(`id="sheet-panel-${tab}"`), `Sheet missing ${tab} panel`);
+  assert.ok(sheetText.includes('aria-label="Prepared skill check"'));
+  assert.ok(sheetText.includes('aria-label="About Learning"'));
+  assert.ok(sheetText.includes(`${prefix}-private-notes`));
+  const gmRequest = client();
+  assert.equal((await signIn(gmRequest, gm.email)).status, 200);
+  const gmSheet = await gmRequest(`/characters/${character.id}`);
+  assert.equal(gmSheet.status, 200);
+  assert.ok((await gmSheet.text()).includes('aria-label="Prepared skill check"'), "Party GM could not view the sheet");
+  const outsiderRequest = client();
+  assert.equal((await signIn(outsiderRequest, outsider.email)).status, 200);
+  const outsiderSheet = await outsiderRequest(`/characters/${character.id}`);
+  const deniedSheetText = await outsiderSheet.text();
+  assert.ok(!deniedSheetText.includes(`${prefix}-private-notes`));
+  assert.ok(!deniedSheetText.includes('id="sheet-panel-play"'), "Unrelated GM received sheet data");
   assert.ok(compendium.includes('"npcs":[]') || compendium.includes('\\"npcs\\":[]'));
   assert.ok(compendium.includes('"vaesen":[]') || compendium.includes('\\"vaesen\\":[]'));
   const deniedAdmin = await playerRequest("/admin/users");
@@ -118,8 +145,14 @@ try {
   const adminRequest = client();
   assert.equal((await signIn(adminRequest, admin.email)).status, 200);
   const userPage = await (await adminRequest("/admin/users")).text();
+  assert.ok((await (await adminRequest(`/characters/${character.id}`)).text()).includes('id="sheet-panel-play"'), "Admin could not view sheet");
   assert.ok(!userPage.includes("passwordHash"));
   assert.ok(!userPage.includes(hash));
+  const activeTemplates = await (await adminRequest("/admin/archetypes")).text();
+  assert.ok(!activeTemplates.includes(archetype.id));
+  const archivedTemplates = await (await adminRequest(`/admin/archetypes?view=archived&q=${prefix}`)).text();
+  assert.ok(archivedTemplates.includes(archetype.id));
+  assert.ok(archivedTemplates.includes("Restore"));
   const skillEditor = await adminRequest("/admin/skills?key=medicine");
   assert.equal(skillEditor.status,200);
   assert.ok((await skillEditor.text()).includes('Save Reference'));
@@ -130,6 +163,22 @@ try {
   const gmMysteries = await (await adminRequest(`/parties/${party.id}/mysteries`)).text();
   assert.ok(gmMysteries.includes(`${prefix}-private-clue`));
   assert.ok(gmMysteries.includes(`${prefix}-private-mystery`));
+
+  await prisma.character.update({ where: { id: character.id }, data: { archivedAt: new Date(), archiveVersion: { increment: 1 } } });
+  assert.ok(!(await (await playerRequest("/")).text()).includes(character.id), "Home included archived character");
+  assert.ok(!(await (await playerRequest("/characters")).text()).includes(character.id), "Active ledger included archived character");
+  const archivedCharacters = await (await playerRequest("/characters?view=archived")).text();
+  assert.ok(archivedCharacters.includes(character.id));
+  assert.ok(archivedCharacters.includes("Restore Character"));
+  assert.ok(!archivedCharacters.includes("All Archived (Admin)"));
+  const archivedSheet = await (await playerRequest(`/characters/${character.id}`)).text();
+  assert.ok(archivedSheet.includes("Archived Character"));
+  assert.ok(!archivedSheet.includes("Spend XP"));
+  assert.ok((await (await adminRequest("/characters?view=archived&scope=all")).text()).includes(character.id));
+  assert.ok(!(await (await adminRequest(`/parties/${party.id}/management`)).text()).includes(character.id), "Active party roster included archived character");
+  await prisma.character.update({ where: { id: character.id }, data: { archivedAt: null, archiveVersion: { increment: 1 } } });
+  assert.ok((await (await playerRequest("/characters")).text()).includes(character.id));
+  assert.ok((await (await playerRequest(`/parties/${party.id}/management`)).text()).includes(character.id));
 
   const logoutRequest = client();
   assert.equal((await signIn(logoutRequest, player.email)).status, 200);
@@ -152,7 +201,7 @@ try {
   await prisma.user.update({ where: { id: admin.id }, data: { role: "PLAYER", sessionVersion: { increment: 1 } } });
   const demoted = await (await adminRequest("/api/auth/session")).json();
   assert.ok(!demoted.user?.id);
-  console.log("HTTP smoke checks passed: login redirects, logout, invalid credentials, role gates, data redaction, note sanitization, and session revocation.");
+  console.log("HTTP smoke checks passed: auth, role gates, redaction, sheet panels and owner/GM/admin access, archetype filtering, character archive/recovery lists and roster filtering, note sanitization, and session revocation.");
 } finally {
   await prisma.user.deleteMany({ where: { id: { in: users } } });
   if (content.archetype) await prisma.archetype.delete({ where: { id: content.archetype } });

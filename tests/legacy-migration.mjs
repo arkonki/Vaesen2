@@ -20,7 +20,7 @@ try {
   assert.equal(tables.length,0,'Migration test database must be empty');
   await cp('prisma/schema.prisma',path.join(temp,'schema.prisma'));
   for (const name of await readdir('prisma/migrations')) {
-    if (!['20261007100000_castle_system','20261008184000_archetype_templates','20261009190000_character_advancement','20261009203000_equipment_catalogue','20261009210000_core_reference'].includes(name)) await cp(path.join('prisma/migrations',name),path.join(temp,'migrations',name),{ recursive:true });
+    if (!['20261007100000_castle_system','20261008184000_archetype_templates','20261009190000_character_advancement','20261009203000_equipment_catalogue','20261009210000_core_reference','20261009220000_archetype_archive','20261010001000_character_archive'].includes(name)) await cp(path.join('prisma/migrations',name),path.join(temp,'migrations',name),{ recursive:true });
   }
   migrate(path.join(temp,'schema.prisma'));
   const user = await prisma.user.create({ data: { role:'GM',email:`migration-${crypto.randomUUID()}@test.local`,passwordHash:'existing-test-hash' } });userId=user.id;
@@ -46,11 +46,12 @@ try {
   const archetype = await prisma.archetype.findUniqueOrThrow({ where:{id:archetypeId},include:{equipmentGroups:true,startingTalents:true} });
   assert.equal(archetype.name,'Custom legacy academic'); assert.equal(archetype.startingResourcesMin,1);
   assert.deepEqual(archetype.firstNameOptions,[]); assert.deepEqual(archetype.equipmentGroups,[]); assert.deepEqual(archetype.startingTalents,[]);
-  assert.equal(archetype.bookKey,null); assert.equal(archetype.sourcePage,null);
+  assert.equal(archetype.archivedAt,null); assert.equal(archetype.revision,0); assert.equal(archetype.bookKey,null); assert.equal(archetype.sourcePage,null);
   assert.equal(await prisma.skillDefinition.count(),0);
   const character = await prisma.character.findUniqueOrThrow({where:{id:characterId}});
   assert.equal(character.notes,'Private old notes'); assert.equal(character.experiencePoints,9); assert.equal(character.resources,2);
   assert.equal(character.experienceVersion,0);
+  assert.equal(character.archivedAt,null); assert.equal(character.archiveVersion,0);
   assert.equal(await prisma.characterAdvancement.count({where:{characterId}}),0);
   const item = await prisma.item.findUniqueOrThrow({where:{id:itemId},include:{usages:true}});
   assert.equal(item.bonus,2); assert.equal(item.availability,3); assert.equal(item.description,'Original mechanics and prose');

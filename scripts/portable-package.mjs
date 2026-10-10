@@ -4,6 +4,7 @@ import path from "node:path";
 export function portableFile(source) {
   const name = path.basename(source);
   return !name.startsWith(".env") &&
+    !name.startsWith("._") && name !== ".DS_Store" &&
     !/\.(node|so|dylib|dll)(\.|$)/.test(name) &&
     !/^(libquery_engine|query-engine|schema-engine)/.test(name) &&
     ![".git", "@img", "sharp"].includes(name) &&
@@ -40,6 +41,7 @@ export async function packagePortable(root) {
     ["scripts/seed-academic.mjs", "scripts/seed-academic.mjs"],
     ["scripts/import-equipment.mjs", "scripts/import-equipment.mjs"],
     ["scripts/import-core-reference.mjs", "scripts/import-core-reference.mjs"],
+    ["scripts/archive-duplicate-archetypes.mjs", "scripts/archive-duplicate-archetypes.mjs"],
   ]) {
     await mkdir(path.dirname(path.join(destination, target)), { recursive: true });
     await cp(path.join(root, source), path.join(destination, target));

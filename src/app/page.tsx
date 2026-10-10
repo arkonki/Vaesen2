@@ -9,13 +9,13 @@ export default async function HomePage() {
   const isAdmin = session.user.role === "ADMIN";
   const isGM = session.user.role === "GM" || isAdmin;
   const invitations = await prisma.characterInvitation.findMany({
-    where: { character: { userId: session.user.id } },
+    where: { character: { userId: session.user.id, archivedAt: null } },
     select: { id: true, party: { select: { name: true } }, character: { select: { name: true } } },
   });
 
   const [characters, memberParties, gmParties, recentMysteries] = await Promise.all([
     prisma.character.findMany({
-      where: { userId: session.user.id },
+      where: { userId: session.user.id, archivedAt: null },
       include: { archetype: true },
       orderBy: { name: "asc" },
     }),
@@ -25,6 +25,7 @@ export default async function HomePage() {
           some: {
             character: {
               userId: session.user.id,
+              archivedAt: null,
             },
           },
         },
@@ -57,6 +58,7 @@ export default async function HomePage() {
                 some: {
                   character: {
                     userId: session.user.id,
+                    archivedAt: null,
                   },
                 },
               },

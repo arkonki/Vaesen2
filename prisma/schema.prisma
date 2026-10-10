@@ -24,6 +24,8 @@ model User {
 
 model Character {
   id                 String                 @id @default(uuid())
+  archivedAt         DateTime?
+  archiveVersion     Int                    @default(0)
   userId             String
   name               String
   ageGroup           AgeGroup
@@ -53,6 +55,8 @@ model Character {
   castleUses         CastleBenefitUse[]
   preparedItems      CastlePreparedItem[]
   advancements       CharacterAdvancement[]
+
+  @@index([userId, archivedAt])
 }
 
 model CharacterAdvancement {
@@ -112,6 +116,8 @@ model CharacterSkill {
 
 model Archetype {
   id                   String                    @id @default(uuid())
+  archivedAt           DateTime?
+  revision             Int                       @default(0)
   bookKey              String?                   @unique
   sourceBook           String?
   sourcePage           Int?

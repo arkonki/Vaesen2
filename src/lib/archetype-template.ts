@@ -29,6 +29,7 @@ export const archetypeTemplateSchema = z.object({
   startingResourcesMax: z.number().int().min(0).max(10),
   startingTalentIds: z.array(z.string().uuid()).max(50).default([]),
   equipmentGroups: z.array(z.object({
+    id: z.string().uuid().optional(),
     label: z.string().trim().min(1).max(100),
     quantity: z.number().int().min(1).max(99),
     itemIds: z.array(z.string().uuid()).min(1).max(50),

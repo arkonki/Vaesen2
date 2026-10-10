@@ -1,40 +1,37 @@
 import type { WizardStepProps } from "./wizard";
+import { useState } from "react";
 import { defaultEquipmentChoices, type ArchetypeTemplate } from "@/lib/archetype-template";
+import CreationChoice from "@/components/creation-choice";
+import ReferenceHelp from "@/components/reference-help";
+import EquipmentDetails from "@/components/equipment-details";
 
-export default function Step1Archetype({ data, update, archetypes, onNext }: Omit<WizardStepProps, "onPrev"> & { archetypes: ArchetypeTemplate[] }) {
-  const selected = archetypes.find(archetype => archetype.id === data.archetypeId);
+export default function Step1Archetype({ data, update, archetypes }: Omit<WizardStepProps, "onPrev"> & { archetypes: ArchetypeTemplate[] }) {
+  const [search, setSearch] = useState("");
   function choose(archetype: ArchetypeTemplate) {
     if (archetype.id === data.archetypeId) return;
-    update({
-      archetypeId: archetype.id, mainAttribute: archetype.mainAttribute, mainSkill: archetype.mainSkill,
+    update({ archetypeId: archetype.id, mainAttribute: archetype.mainAttribute, mainSkill: archetype.mainSkill,
       minResources: archetype.startingResourcesMin, maxResources: archetype.startingResourcesMax,
-      resources: archetype.startingResourcesMin, equipmentChoices: defaultEquipmentChoices(archetype),
-    });
+      resources: archetype.startingResourcesMin, equipmentChoices: defaultEquipmentChoices(archetype) });
   }
-  return <div className="space-y-6">
-    <div><h2 className="text-2xl font-bold">Choose an Archetype</h2><p className="mt-2">Your archetype is the starting point. Choose it first, then explore its suggested names, background, talents, and equipment.</p></div>
-    <div className="grid gap-3 sm:grid-cols-2">
-      {archetypes.map(archetype => <button type="button" key={archetype.id} aria-pressed={archetype.id === data.archetypeId} onClick={() => choose(archetype)} className={`ledger-panel p-4 text-left ${archetype.id === data.archetypeId ? "bg-[var(--ledger-paper-deep)] border-[var(--ledger-accent)]" : ""}`}>
-        <h3 className="text-xl font-bold">{archetype.name}</h3>
-        {archetype.bookKey && <p className="text-xs mt-1">Core book / p. {archetype.sourcePage}</p>}
-        <p className="mt-2 text-sm">{archetype.mainAttribute} / {archetype.mainSkill.replace(/([A-Z])/g," $1")}</p>
-        <p className="text-sm">Resources {archetype.startingResourcesMin}-{archetype.startingResourcesMax}</p>
-        {archetype.flavorText && <p className="mt-2 text-sm italic line-clamp-3">{archetype.flavorText}</p>}
-      </button>)}
-    </div>
-    {!archetypes.length && <p className="ledger-status">No archetypes are available. Ask an administrator to add one.</p>}
-    {selected && <article className="ledger-panel p-5 space-y-4">
-      <h3 className="ledger-bar">{selected.name}</h3>
-      {selected.flavorText && <p className="whitespace-pre-wrap italic leading-relaxed">{selected.flavorText}</p>}
-      <dl className="grid gap-3 sm:grid-cols-2">
-        <div><dt className="font-bold">Main Attribute</dt><dd className="capitalize">{selected.mainAttribute}</dd></div>
-        <div><dt className="font-bold">Main Skill</dt><dd className="capitalize">{selected.mainSkill.replace(/([A-Z])/g," $1")}</dd></div>
-        <div><dt className="font-bold">Starting Talents</dt><dd>{selected.startingTalents?.map(entry => entry.talent.name).join(", ") || "Available general and archetype talents"}</dd></div>
-        <div><dt className="font-bold">Resources</dt><dd>{selected.startingResourcesMin}-{selected.startingResourcesMax}</dd></div>
-        <div className="sm:col-span-2"><dt className="font-bold">Equipment</dt><dd>{selected.equipmentGroups?.length ? selected.equipmentGroups.map(group => `${group.options.map(option => option.item.name).join(" or ")}${group.quantity > 1 ? ` (x${group.quantity})` : ""}`).join("; ") : "Choose gear with your GM"}</dd></div>
-      </dl>
-      <p className="text-sm">Name and background suggestions are available in the following steps. You may always write your own.</p>
-    </article>}
-    <div className="flex justify-end border-t border-[var(--ledger-line)] pt-5"><button type="button" disabled={!selected} onClick={onNext} className="ledger-button ledger-button-primary">Next: Age</button></div>
+  const visible = archetypes.filter(entry => `${entry.name} ${entry.mainAttribute} ${entry.mainSkill}`.toLowerCase().includes(search.toLowerCase().trim()));
+  return <div className="space-y-5">
+    <div className="flex items-center gap-2"><h2 className="creation-section-title">Your calling</h2><ReferenceHelp label="Archetypes">Your archetype provides a main attribute, main skill, starting talents, Resources range, equipment, and background suggestions. Open entries to compare them; only Choose changes your selection.</ReferenceHelp></div>
+    <label className="block text-sm font-bold">Find an archetype<input type="search" className="ledger-input w-full mt-2" placeholder="Name, attribute, or skill" value={search} onChange={event => setSearch(event.target.value)} /></label>
+    <p className="text-sm">{data.archetypeId ? `Chosen: ${archetypes.find(entry => entry.id === data.archetypeId)?.name}.` : "No archetype chosen yet."} Open any entry to read more.</p>
+    <div className="space-y-3">{visible.map(archetype => <CreationChoice key={archetype.id} title={archetype.name} selected={archetype.id === data.archetypeId} onChoose={() => choose(archetype)}
+      summary={<span className="capitalize">{archetype.mainAttribute} / {archetype.mainSkill.replace(/([A-Z])/g," $1")} / Resources {archetype.startingResourcesMin}-{archetype.startingResourcesMax}</span>}>
+      {archetype.flavorText && <p className="whitespace-pre-wrap italic leading-relaxed mb-5">{archetype.flavorText}</p>}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div><h3 className="font-bold">Main attribute & skill</h3><p className="capitalize">{archetype.mainAttribute} / {archetype.mainSkill.replace(/([A-Z])/g," $1")}</p></div>
+        <div><h3 className="font-bold">Resources</h3><p>{archetype.startingResourcesMin}-{archetype.startingResourcesMax}</p></div>
+      </div>
+      <details className="creation-nested mt-4"><summary>Starting talents</summary><div className="space-y-3 mt-3">{archetype.startingTalents?.length ? archetype.startingTalents.map(({ talent }) => <div key={talent.id}><h4 className="font-bold">{talent.name}</h4><p className="whitespace-pre-wrap">{talent.description}</p></div>) : <p>Choose from the available talents in Background.</p>}</div></details>
+      <details className="creation-nested mt-3"><summary>Starting equipment</summary><div className="space-y-4 mt-3">{archetype.equipmentGroups?.length ? archetype.equipmentGroups.map(group => <div key={group.id}><h4 className="font-bold mb-2">{group.label} x{group.quantity}{group.options.length > 1 ? " (choose one)" : " (included)"}</h4>{group.options.map(option => <details className="creation-nested mb-2" key={option.itemId}><summary>{option.item.name}</summary><div className="mt-2"><EquipmentDetails item={option.item} /></div></details>)}</div>) : <p>Choose equipment with your GM.</p>}</div></details>
+      <details className="creation-nested mt-3"><summary>Name & background suggestions</summary><div className="mt-3 space-y-3">{[
+        ["First names", archetype.firstNameOptions], ["Last names", archetype.lastNameOptions], ["Motivation", archetype.motivationOptions], ["Trauma", archetype.traumaOptions], ["Dark secret", archetype.darkSecretOptions], ["Relationships", archetype.relationshipOptions],
+      ].map(([label, options]) => <div key={String(label)}><h4 className="font-bold">{String(label)}</h4><p>{(options as string[]).join("; ") || "Write your own."}</p></div>)}</div></details>
+      {archetype.sourceBook && <p className="text-sm mt-4">{archetype.sourceBook}{archetype.sourcePage ? ` / p. ${archetype.sourcePage}` : ""}</p>}
+    </CreationChoice>)}</div>
+    {!visible.length && <p className="ledger-status">{archetypes.length ? "No matching archetypes. Try another search." : "No archetypes are available. Ask an administrator to add one."}</p>}
   </div>;
 }

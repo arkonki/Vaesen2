@@ -122,29 +122,32 @@ export async function createParty(name: string) {
 
 export async function enrollCharacter(partyId: string, characterId: string) {
   const { session } = await requirePartyManager(partyId);
-
-  const character = await prisma.character.findUnique({
+  await prisma.$transaction(async tx => {
+  await tx.$queryRaw`SELECT id FROM "Character" WHERE id = ${characterId} FOR SHARE`;
+  const character = await tx.character.findUnique({
     where: { id: characterId },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, archivedAt: true },
   });
 
   if (!character) {
     throw new Error("Character not found");
   }
+  if (character.archivedAt) throw new Error("Restore this character before inviting or enrolling it.");
 
   if (session.user.role !== "ADMIN" && character.userId !== session.user.id) {
-    await prisma.characterInvitation.upsert({
+    await tx.characterInvitation.upsert({
       where: { partyId_characterId: { partyId, characterId } },
       update: {},
       create: { partyId, characterId },
     });
   } else {
-    await prisma.partyMember.upsert({
+    await tx.partyMember.upsert({
       where: { partyId_characterId: { partyId, characterId } },
       update: {},
       create: { partyId, characterId },
     });
   }
+  });
 
   revalidatePath("/");
   revalidatePath("/parties");
@@ -159,10 +162,13 @@ export async function respondToInvitation(
   const invitation = await prisma.$transaction(
     async (tx) => {
       const invitation = await tx.characterInvitation.findFirst({
-        where: { id: invitationId, character: { userId: session.user.id } },
+        where: { id: invitationId, character: { userId: session.user.id, archivedAt: null } },
         select: { id: true, partyId: true, characterId: true },
       });
       if (!invitation) throw new Error("Invitation not found");
+      await tx.$queryRaw`SELECT id FROM "Character" WHERE id = ${invitation.characterId} FOR SHARE`;
+      const target = await tx.character.findUniqueOrThrow({ where: { id: invitation.characterId }, select: { archivedAt: true } });
+      if (target.archivedAt) throw new Error("Restore this character before responding to its invitation.");
       if (accept) {
         await tx.partyMember.upsert({
           where: {

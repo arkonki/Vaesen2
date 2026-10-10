@@ -12,6 +12,7 @@ export default async function ManagementPage({ params }: { params: Promise<{ id:
     where: { id: id },
     include: {
       members: {
+        where: { character: { archivedAt: null } },
         include: {
           character: {
             select: partyCharacterSelect,

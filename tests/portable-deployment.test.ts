@@ -29,7 +29,7 @@ describe("portable runtime", () => {
     expect(() => validatePortableEnvironment({ ...env, NEXTAUTH_URL: "http://localhost:3000" })).not.toThrow();
   });
   it("filters secrets, native modules and legacy Prisma binaries", () => {
-    for (const name of [".env", ".env.production", ".env.local", "addon.node", "lib.so.1", "lib.dylib", "lib.dll", "libquery_engine-native.node", "schema-engine", "query-engine-native", "sharp", "@img", "swc-darwin-arm64", ".git"]) {
+    for (const name of [".env", ".env.production", ".env.local", "._site.css", ".DS_Store", "addon.node", "lib.so.1", "lib.dylib", "lib.dll", "libquery_engine-native.node", "schema-engine", "query-engine-native", "sharp", "@img", "swc-darwin-arm64", ".git"]) {
       expect(portableFile(`/app/${name}`)).toBe(false);
     }
     for (const name of ["schema.prisma", "query_compiler_bg.postgresql.wasm", "query_compiler_bg.postgresql.js", "server.js"]) expect(portableFile(`/app/${name}`)).toBe(true);
@@ -50,7 +50,9 @@ describe("portable runtime", () => {
       await file(".next/standalone/node_modules/native.node");
       await file(".next/static/site.css");
       await file("public/icon.svg");
-      for (const name of ["prisma/client.js", "prisma/seed.js", "prisma/content/academic.js", "prisma/content/academic.json", "scripts/seed-academic.mjs", "scripts/import-equipment.mjs", "scripts/import-core-reference.mjs", "prisma/content/core-reference.js", "prisma/content/archetypes.json", "prisma/content/archetype-talents.js", "prisma/content/skills.js", "prisma/content/starting-items.js", "prisma/content/equipment.js", "scripts/start-portable.mjs", "scripts/check-portable.mjs", "scripts/portable-env.mjs", "deploy/freebsd.env.example"]) {
+      await mkdir(path.join(root, "prisma/content"), { recursive: true });
+      await cp(path.resolve("prisma/content/archetype-cleanup.js"), path.join(root, "prisma/content/archetype-cleanup.js"));
+      for (const name of ["prisma/client.js", "prisma/seed.js", "prisma/content/academic.js", "prisma/content/academic.json", "scripts/seed-academic.mjs", "scripts/import-equipment.mjs", "scripts/import-core-reference.mjs", "scripts/archive-duplicate-archetypes.mjs", "prisma/content/core-reference.js", "prisma/content/archetypes.json", "prisma/content/archetype-talents.js", "prisma/content/skills.js", "prisma/content/starting-items.js", "prisma/content/equipment.js", "scripts/start-portable.mjs", "scripts/check-portable.mjs", "scripts/portable-env.mjs", "deploy/freebsd.env.example"]) {
         await mkdir(path.dirname(path.join(root, name)), { recursive: true });
         await cp(path.resolve(name), path.join(root, name));
       }
@@ -62,6 +64,8 @@ describe("portable runtime", () => {
       expect(await readFile(path.join(destination, "prisma/client.js"), "utf8")).toContain("PrismaPg");
       expect(await readFile(path.join(destination, "prisma/content/academic.js"), "utf8")).toContain("installAcademicTemplate");
       expect(await readFile(path.join(destination, "scripts/seed-academic.mjs"), "utf8")).toContain("--apply");
+      expect(await readFile(path.join(destination, "scripts/archive-duplicate-archetypes.mjs"), "utf8")).toContain("archiveDuplicateArchetypes");
+      expect(await readFile(path.join(destination, "prisma/content/archetype-cleanup.js"), "utf8")).toContain("archiveDuplicateArchetypes");
       expect(await readFile(path.join(destination, "node_modules/bcryptjs/index.js"), "utf8")).toBe("test");
       expect(await readFile(path.join(destination, ".env.example"), "utf8")).not.toContain("must-not-be-copied");
       expect(await readFile(path.join(destination, "check.mjs"), "utf8")).toContain("prisma.user.count");

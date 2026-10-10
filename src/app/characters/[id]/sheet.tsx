@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { TalentType } from "@prisma/client";
-import { equipmentBonusLabel, profilesFor, type EquipmentItem } from "@/lib/equipment";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { TalentType, type SkillDefinition as SkillReference } from "@prisma/client";
+import { equipmentBonusLabel, profilesFor, skillName, typeName, type EquipmentItem } from "@/lib/equipment";
 import EquipmentDetails from "@/components/equipment-details";
 import {
   updateCharacterConditions,
@@ -14,6 +14,14 @@ import DiceRollerModal from "@/components/dice-roller-modal";
 import CharacterAdvancement from "@/components/character-advancement";
 import type { AdvancementEntry } from "@/lib/advancement-rules";
 import { useRouter } from "next/navigation";
+
+import ReferenceHelp from "@/components/reference-help";
+import CreationChoice from "@/components/creation-choice";
+import SkillDetails from "@/components/skill-details";
+import VaesenMark from "@/components/vaesen-mark";
+import CharacterCastleBenefits, { type CharacterCastleBenefit } from "@/components/character-castle-benefits";
+import { SHEET_SKILLS, applicableGear, isTemporaryGear, rollModifier, sheetPool } from "@/lib/character-sheet-rules";
+import { summarizeConditions } from "@/lib/character-rules";
 
 type ConditionState = Record<string, boolean>;
 
@@ -69,6 +77,7 @@ type CharacterSheetProps = {
   name: string;
   ageGroup: string;
   archetypeName: string;
+  archetypeArchived?: boolean;
   motivation: string;
   trauma: string;
   darkSecret: string;
@@ -90,6 +99,8 @@ type CharacterSheetProps = {
   talents: TalentSummary[];
   inventory: InventoryEntry[];
   insightsAfflictions: string[];
+  skillReferences: SkillReference[];
+  castleBenefits: CharacterCastleBenefit[];
 };
 
 const MAX_XP_TRACKER = 10;
@@ -108,88 +119,13 @@ const MENTAL_CONDITIONS = [
   { key: "broken", label: "Broken" },
 ] as const;
 
-const SKILL_DEFINITIONS: SkillDefinition[] = [
-  { key: "agility", label: "Agility", attribute: "physique", domain: "physical" },
-  { key: "closeCombat", label: "Close Combat", attribute: "physique", domain: "physical" },
-  { key: "force", label: "Force", attribute: "physique", domain: "physical" },
-  { key: "medicine", label: "Medicine", attribute: "precision", domain: "physical" },
-  { key: "rangedCombat", label: "Ranged Combat", attribute: "precision", domain: "physical" },
-  { key: "stealth", label: "Stealth", attribute: "precision", domain: "physical" },
-  { key: "investigation", label: "Investigation", attribute: "logic", domain: "mental" },
-  { key: "learning", label: "Learning", attribute: "logic", domain: "mental" },
-  { key: "vigilance", label: "Vigilance", attribute: "logic", domain: "mental" },
-  { key: "inspiration", label: "Inspiration", attribute: "empathy", domain: "mental" },
-  { key: "manipulation", label: "Manipulation", attribute: "empathy", domain: "mental" },
-  { key: "observation", label: "Observation", attribute: "empathy", domain: "mental" },
-];
-
-function conditionSetCount(conditions: ConditionState, keys: readonly string[]) {
-  return keys.filter((key) => key !== "broken" && conditions[key]).length;
-}
+const SKILL_DEFINITIONS: SkillDefinition[] = SHEET_SKILLS;
 
 function formatAgeGroup(value: string) {
   return value
     .replaceAll("_", " ")
     .toLowerCase()
     .replace(/^\w/, (letter) => letter.toUpperCase());
-}
-
-function splitRelationshipLines(value: string) {
-  const lines = value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  return Array.from({ length: 4 }, (_, index) => lines[index] ?? "");
-}
-
-function isTemporaryEntry(entry: InventoryEntry) {
-  return Boolean(entry.notes && /temp|temporary|borrowed|loan/i.test(entry.notes));
-}
-
-function InventoryTable({
-  columns,
-  rows,
-  emptyLabel,
-}: {
-  columns: string[];
-  rows: string[][];
-  emptyLabel: string;
-}) {
-  return (
-    <div className="ledger-table-wrap">
-      <table className="ledger-table">
-        <thead>
-          <tr>
-            {columns.map((column) => (
-              <th key={column}>{column}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length > 0 ? (
-            rows.map((row, rowIndex) => (
-              <tr key={`${row.join("-")}-${rowIndex}`}>
-                {row.map((cell, cellIndex) => (
-                  <td key={`${cell}-${cellIndex}`}>{cell || "\u00A0"}</td>
-                ))}
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan={columns.length} className="ledger-empty-cell">
-                {emptyLabel}
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function SectionBar({ title }: { title: string }) {
-  return <div className="ledger-bar">{title}</div>;
 }
 
 function FieldBlock({
@@ -205,15 +141,6 @@ function FieldBlock({
     <div className={cn("ledger-field", compact && "ledger-field-compact")}>
       <span className="ledger-field-label">{label}</span>
       <div className="ledger-field-body">{children}</div>
-    </div>
-  );
-}
-
-function StatCell({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="ledger-stat-cell">
-      <span className="ledger-stat-label">{label}</span>
-      <span className="ledger-stat-value">{value}</span>
     </div>
   );
 }
@@ -271,6 +198,31 @@ export default function CharacterSheet(props: CharacterSheetProps) {
   const [itemBonus, setItemBonus] = useState<number>(0);
   const [selectedEquipment, setSelectedEquipment] = useState("");
   const [advantages, setAdvantages] = useState<number>(0);
+  const [selectedArmor, setSelectedArmor] = useState("");
+  const [activeTab, setActiveTab] = useState<"play" | "equipment" | "background" | "notes">("play");
+  const [experienceExpanded, setExperienceExpanded] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(108);
+  useEffect(() => {
+    const header = document.querySelector(".society-header");
+    if (!header) return;
+    const measure = () => setHeaderHeight(header.getBoundingClientRect().height);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
+  const [equipmentQuery, setEquipmentQuery] = useState("");
+  const [equipmentCategory, setEquipmentCategory] = useState("all");
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const checkHeading = useRef<HTMLHeadingElement>(null);
+  const [focusCheck, setFocusCheck] = useState(false);
+  useEffect(() => {
+    if (activeTab === "play" && focusCheck) {
+      checkHeading.current?.focus({ preventScroll: true });
+      checkHeading.current?.scrollIntoView({ block: "start" });
+      setFocusCheck(false);
+    }
+  }, [activeTab, focusCheck]);
 
   const [conditionSaving, setConditionSaving] = useState(false);
   const [xpSaving, setXpSaving] = useState(false);
@@ -302,21 +254,6 @@ export default function CharacterSheet(props: CharacterSheetProps) {
     } catch { /* Autosave still works when browser storage is unavailable. */ }
     setJournalLoaded(true);
   }, [canEdit, journalKey, props.notes, props.relationships]);
-
-  const groupedInventory = useMemo(() => {
-    const weapons = inventory.flatMap(entry => profilesFor(entry.item).filter(profile => profile.kind === "ATTACK").map(profile => ({ ...entry, profile })));
-    const armor = inventory.filter((entry) => entry.item.type === "ARMOR");
-    const equipment = inventory.filter(
-      (entry) => entry.item.type === "GEAR" || entry.item.type === "MAGIC"
-    );
-
-    return {
-      weapons,
-      armor,
-      personalGear: equipment.filter((entry) => !isTemporaryEntry(entry)),
-      temporaryGear: equipment.filter((entry) => isTemporaryEntry(entry)),
-    };
-  }, [inventory]);
 
   async function persistConditions(nextPhysical: ConditionState, nextMental: ConditionState) {
     const previousPhysical = physicalConditions;
@@ -418,416 +355,128 @@ export default function CharacterSheet(props: CharacterSheetProps) {
     return () => window.removeEventListener("beforeunload", warn);
   }, [journalStatus]);
 
-  const physicalLoad = conditionSetCount(physicalConditions, PHYSICAL_CONDITIONS.map((entry) => entry.key));
-  const mentalLoad = conditionSetCount(mentalConditions, MENTAL_CONDITIONS.map((entry) => entry.key));
-  const selectedSkillDefinition =
-    SKILL_DEFINITIONS.find((entry) => entry.key === selectedSkill) ?? SKILL_DEFINITIONS[0];
-  const attributeValue = attributes[selectedSkillDefinition.attribute];
-  const skillValue = skills[selectedSkillDefinition.key];
-  const usableProfiles = inventory.flatMap(entry => profilesFor(entry.item)
-    .filter(profile => profile.kind !== "NARRATIVE" && profile.skills.includes(selectedSkill) && profile.bonus !== 0)
-    .map(profile => ({ key: `${entry.id}:${profile.id}`, name: `${entry.item.name}: ${profile.label}`, profile })));
-  const conditionPenalty = selectedSkillDefinition.domain === "physical" ? physicalLoad : mentalLoad;
+  const selectedSkillDefinition = SKILL_DEFINITIONS.find(entry => entry.key === selectedSkill)!;
+  const physicalLoad = summarizeConditions(physicalConditions, mentalConditions).physical;
+  const mentalLoad = summarizeConditions(physicalConditions, mentalConditions).mental;
+  const usableProfiles = applicableGear(inventory, selectedSkill);
   const selectedProfile = usableProfiles.find(entry => entry.key === selectedEquipment);
+  const armor = inventory.find(entry => entry.id === selectedArmor && entry.quantity > 0 && entry.item.type === "ARMOR")?.item;
   const appliedItemBonus = selectedProfile?.profile.bonus ?? itemBonus;
-  const dicePool = Math.max(0, attributeValue + skillValue + appliedItemBonus + advantages - conditionPenalty);
-  const relationshipLines = splitRelationshipLines(relationships);
+  const pool = sheetPool({ skill: selectedSkill, attributes, skills, physical: physicalConditions, mental: mentalConditions, itemBonus: appliedItemBonus, advantages, armor });
+  const visibleInventory = inventory.filter(entry => {
+    const matchesCategory = equipmentCategory === "all" || (equipmentCategory === "temporary" ? isTemporaryGear(entry) : entry.item.type === equipmentCategory);
+    const text = [entry.item.name, entry.item.description, entry.notes, ...profilesFor(entry.item).flatMap(profile => [profile.label, profile.effect, profile.requirements, ...profile.skills.map(skillName)])].join(" ").toLowerCase();
+    return matchesCategory && text.includes(equipmentQuery.trim().toLowerCase());
+  });
+  const journalLabel = journalStatus === "saving" ? "Saving notes & relationships..." : journalStatus === "saved" ? "Notes & relationships saved" : journalStatus === "error" ? "Notes not saved. Retry below." : canEdit ? "Notes & relationships autosave" : "Read-only journal";
 
-  return (
-    <div className="ledger-page space-y-6">
-      <nav className="ledger-section-nav" aria-label="Character sheet sections">
-        <a href="#sheet-play">Skills & Conditions</a><a href="#sheet-background">Background</a><a href="#sheet-equipment">Equipment</a><a href="#sheet-notes">Notes</a>
-      </nav>
-      {mutationError && <p role="alert" className="ledger-panel p-3">{mutationError}</p>}
-      <section className="ledger-sheet">
-        <div className="ledger-top-grid">
-          <div className="space-y-2">
-            <FieldBlock label="Name">
-              <span className="ledger-field-text">{name}</span>
-            </FieldBlock>
+  function prepareCheck(skill: SkillKey, equipment = "") {
+    setSelectedSkill(skill);
+    setSelectedEquipment(equipment);
+    setSelectedArmor("");
+    setItemBonus(0);
+    setAdvantages(0);
+    setActiveTab("play");
+    setFocusCheck(true);
+  }
 
-            <div className="grid grid-cols-[0.7fr_1.3fr] gap-2">
-              <FieldBlock label="Age/Age Group" compact>
-                <span className="ledger-field-text">{formatAgeGroup(ageGroup)}</span>
-              </FieldBlock>
-              <FieldBlock label="Archetype" compact>
-                <span className="ledger-field-text">{archetypeName}</span>
-              </FieldBlock>
-            </div>
-          </div>
-
-          <div className="ledger-title-block">
-            <p className="ledger-kicker">Society Ledger</p>
-            <h1>VAESEN</h1>
-            <p className="ledger-subtitle">Character Sheet</p>
-          </div>
-
-          <div>
-            <SectionBar title="Experience" />
-            <div className="ledger-xp-wrap">
-              <div className="ledger-xp-grid">
-                {Array.from({ length: MAX_XP_TRACKER }).map((_, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    disabled={!canEdit || xpSaving || advancementBusy || experiencePoints > MAX_XP_TRACKER}
-                    onClick={() => handleXpToggle(index)}
-                    className={cn("ledger-xp-mark", index < experiencePoints && "is-filled")}
-                    aria-label={`Experience slot ${index + 1}`}
-                    aria-pressed={index < experiencePoints}
-                  />
-                ))}
-              </div>
-              <p className="ledger-helper-copy">
-                {experiencePoints} unspent XP{experiencePoints > MAX_XP_TRACKER ? ' (above the checkbox tracker; no XP is discarded)' : `/${MAX_XP_TRACKER}`}
-                {xpSaving ? " saving..." : ""}
-              </p>
-              <CharacterAdvancement characterId={characterId} canEdit={canEdit} experiencePoints={experiencePoints} experienceVersion={experienceVersion}
-                skills={skills} hasSkillRecord={props.hasSkillRecord} availableTalents={props.availableTalents}
-                history={props.advancementHistory} hasMore={props.hasMoreAdvancements} disabled={xpSaving || advancementBusy}
-                onBusy={setAdvancementBusy} onUpdated={(xp, version) => { setExperiencePoints(xp); setExperienceVersion(version); }} />
-            </div>
-          </div>
+  const panels = ["play", "equipment", "background", "notes"] as const;
+  return <div className="ledger-page character-sheet-v2" style={{ "--sheet-header-height": `${headerHeight}px` } as CSSProperties}>
+    {mutationError && <p role="alert" className="ledger-panel p-3">{mutationError}</p>}
+    <section className="ledger-sheet sheet-identity" aria-label="Character overview">
+      <div className="sheet-identity-main">
+        <VaesenMark className="sheet-identity-mark" />
+        <div className="min-w-0"><p className="ledger-kicker">Society Ledger / Character Sheet</p><h1>{name}</h1><p>{archetypeName} <span aria-hidden="true">/</span> {formatAgeGroup(ageGroup)}{props.archetypeArchived && <span className="block text-sm">Archived template / character preserved</span>}</p></div>
+      </div>
+      <div className="sheet-experience">
+        <button type="button" className="sheet-xp-disclosure" aria-expanded={experienceExpanded} aria-controls="sheet-xp-controls" onClick={() => setExperienceExpanded(value => !value)}>Experience / {experiencePoints} unspent XP <span aria-hidden="true">{experienceExpanded ? "-" : "+"}</span></button>
+        <div id="sheet-xp-controls" className={cn("sheet-xp-controls", !experienceExpanded && "is-collapsed")}>
+        <div className="sheet-heading"><h2>Experience</h2><ReferenceHelp label="Experience"><p>Track unspent XP here. Advancement spends XP through the separate advancement controls and records each purchase in your history.</p><p>Clicking a marked slot reduces the balance; clicking an empty one fills through that slot.</p></ReferenceHelp></div>
+        <div className="ledger-xp-grid">{Array.from({ length: MAX_XP_TRACKER }).map((_, index) => <button key={index} type="button" disabled={!canEdit || xpSaving || advancementBusy || experiencePoints > MAX_XP_TRACKER} onClick={() => handleXpToggle(index)} className={cn("ledger-xp-mark", index < experiencePoints && "is-filled")} aria-label={`Experience slot ${index + 1}`} aria-pressed={index < experiencePoints} />)}</div>
+        <p className="ledger-helper-copy">{experiencePoints} unspent XP{experiencePoints > MAX_XP_TRACKER ? " (above tracker; no XP discarded)" : ` / ${MAX_XP_TRACKER}`}{xpSaving ? " / Saving..." : ""}</p>
+        <CharacterAdvancement characterId={characterId} canEdit={canEdit} experiencePoints={experiencePoints} experienceVersion={experienceVersion} skills={skills} hasSkillRecord={props.hasSkillRecord} availableTalents={props.availableTalents} history={props.advancementHistory} hasMore={props.hasMoreAdvancements} disabled={xpSaving || advancementBusy} onBusy={setAdvancementBusy} onUpdated={(xp, version) => { setExperiencePoints(xp); setExperienceVersion(version); }} />
         </div>
+      </div>
+    </section>
 
-        <div className="ledger-sheet-columns">
-          <div id="sheet-background" className="ledger-character-story space-y-4">
-            <FieldBlock label="Motivation">
-              <span className="ledger-multiline-text">{motivation}</span>
-            </FieldBlock>
-            <FieldBlock label="Trauma">
-              <div className="space-y-2">
-                <span className="ledger-multiline-text">{trauma}</span>
-                <div className="ledger-note-callout">
-                  The Sight: all player characters carry the ability to perceive Vaesen, awakened by trauma.
-                </div>
-              </div>
-            </FieldBlock>
-            <FieldBlock label="Dark Secret">
-              <span className="ledger-multiline-text">{darkSecret}</span>
-            </FieldBlock>
+    <div className="sheet-tabbar" role="tablist" aria-label="Character sheet sections">{panels.map((tab, index) => <button key={tab} id={`sheet-tab-${tab}`} ref={element => { tabRefs.current[index] = element; }} type="button" role="tab" aria-label={tab === "equipment" ? `Equipment (${inventory.length})` : tab[0].toUpperCase() + tab.slice(1)} aria-selected={activeTab === tab} aria-controls={`sheet-panel-${tab}`} tabIndex={activeTab === tab ? 0 : -1} onClick={() => setActiveTab(tab)} onKeyDown={event => {
+      const next = event.key === "ArrowRight" ? (index + 1) % panels.length : event.key === "ArrowLeft" ? (index + panels.length - 1) % panels.length : event.key === "Home" ? 0 : event.key === "End" ? panels.length - 1 : -1;
+      if (next >= 0) { event.preventDefault(); setActiveTab(panels[next]); tabRefs.current[next]?.focus(); }
+    }}><span className="sheet-tab-label-full">{tab === "equipment" ? `Equipment (${inventory.length})` : tab[0].toUpperCase() + tab.slice(1)}</span><span className="sheet-tab-label-short" aria-hidden="true">{tab === "equipment" ? `Gear (${inventory.length})` : tab === "background" ? "Story" : tab[0].toUpperCase() + tab.slice(1)}</span>{tab === "notes" && journalStatus === "error" && <span aria-label="Save failed"> !</span>}</button>)}</div>
+    <div className="sheet-session-strip"><span>Physical: -{physicalLoad} dice{physicalConditions.broken ? " / Broken" : ""}</span><span>Mental: -{mentalLoad} dice{mentalConditions.broken ? " / Broken" : ""}</span><span role="status" className={journalStatus === "error" ? "text-[var(--ledger-danger)]" : ""}>{journalLabel}</span></div>
+    {recoveredJournal && <p className="ledger-status">Recovered unsaved journal from this tab. It will save automatically.</p>}
+    {journalStatus === "error" && <button type="button" className="ledger-button" onClick={() => setJournalRetry(value => value + 1)}>Retry Journal Save</button>}
 
-            <div className="ledger-panel">
-              <SectionBar title="Relationships" />
-              <div className="ledger-panel-body">
-                {canEdit ? (
-                  <textarea
-                    rows={8}
-                    aria-label="Relationships"
-                    value={relationships}
-                    onChange={(event) => setRelationships(event.target.value)}
-                    className="ledger-textarea h-44"
-                    placeholder={"PC 1:\nPC 2:\nPC 3:\nPC 4:"}
-                  />
-                ) : (
-                  <div className="space-y-2">
-                    {relationshipLines.map((line, index) => (
-                      <div key={`${line}-${index}`} className="ledger-line-row">
-                        <span className="ledger-line-prefix">PC {index + 1}:</span>
-                        <span className="ledger-line-fill">{line || " "}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="ledger-panel">
-              <SectionBar title="Resources" />
-              <div className="ledger-panel-body">
-                <div className="grid grid-cols-[0.35fr_1fr_0.35fr] gap-2">
-                  <FieldBlock label="Value" compact>
-                    <span className="ledger-field-text">{resources}</span>
-                  </FieldBlock>
-                  <FieldBlock label="Living Standards" compact>
-                    <span className="ledger-field-text">{resources > 4 ? "Comfortable" : resources > 2 ? "Modest" : "Sparse"}</span>
-                  </FieldBlock>
-                  <FieldBlock label="Capital" compact>
-                    <span className="ledger-field-text">{capital}</span>
-                  </FieldBlock>
-                </div>
-              </div>
-            </div>
-
-            <div className="ledger-panel">
-              <SectionBar title="Personal Gear" />
-              <div className="ledger-panel-body">
-                <InventoryTable
-                  columns={["Item", "Bonus"]}
-                  rows={groupedInventory.personalGear.map((entry) => [
-                    `${entry.item.name}${entry.quantity > 1 ? ` x${entry.quantity}` : ""}`,
-                    equipmentBonusLabel(entry.item),
-                  ])}
-                  emptyLabel="No personal gear recorded."
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="ledger-character-play space-y-4">
-            <div id="sheet-play" className="ledger-panel">
-              <SectionBar title="Attributes" />
-              <div className="ledger-panel-body">
-                <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
-                  <StatCell label="Physique" value={attributes.physique} />
-                  <StatCell label="Precision" value={attributes.precision} />
-                  <StatCell label="Logic" value={attributes.logic} />
-                  <StatCell label="Empathy" value={attributes.empathy} />
-                </div>
-              </div>
-
-              <div className="grid gap-4 border-t border-[var(--ledger-line)]/70 px-3 py-3 xl:grid-cols-2">
-                <div>
-                  <SectionBar title={`Physical Conditions${conditionSaving ? " / Saving" : ""}`} />
-                  <div className="ledger-condition-row">
-                    {PHYSICAL_CONDITIONS.map((condition) => (
-                      <ConditionToggle
-                        key={condition.key}
-                        label={condition.label}
-                        checked={Boolean(physicalConditions[condition.key])}
-                        disabled={!canEdit || conditionSaving}
-                        onChange={() => handleConditionToggle("physical", condition.key)}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <SectionBar title="Mental Conditions" />
-                  <div className="ledger-condition-row">
-                    {MENTAL_CONDITIONS.map((condition) => (
-                      <ConditionToggle
-                        key={condition.key}
-                        label={condition.label}
-                        checked={Boolean(mentalConditions[condition.key])}
-                        disabled={!canEdit || conditionSaving}
-                        onChange={() => handleConditionToggle("mental", condition.key)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t border-[var(--ledger-line)]/70 px-3 py-3">
-                <SectionBar title="Skills" />
-                <div className="mt-3 grid grid-cols-2 gap-3 xl:grid-cols-4">
-                  {(["physique", "precision", "logic", "empathy"] as const).map((attributeKey) => (
-                    <div key={attributeKey} className="space-y-2">
-                      {SKILL_DEFINITIONS.filter((entry) => entry.attribute === attributeKey).map((entry) => (
-                        <DiceRollerModal key={entry.key} triggerVariant="skill"
-                          initialDiceCount={Math.max(0, attributes[entry.attribute] + skills[entry.key] - (entry.domain === "physical" ? physicalLoad : mentalLoad))}
-                          title={`${entry.label} Roll`}
-                          triggerLabel={<><span className="flex-1">{entry.label}</span><small className="text-[var(--ledger-ink-soft)]">{Math.max(0, attributes[entry.attribute] + skills[entry.key] - (entry.domain === "physical" ? physicalLoad : mentalLoad))}d6</small><span className="ledger-skill-value">{skills[entry.key]}</span></>}
-                        />
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-2">
-              <div className="ledger-panel">
-                <SectionBar title="Talents" />
-                <div className="ledger-panel-body">
-                  {talents.length > 0 ? (
-                    <div className="space-y-2">
-                      {talents.map((talent) => (
-                        <div key={talent.id} className="ledger-note-block">
-                          <p className="font-semibold">{talent.name}</p>
-                          <p className="text-xs uppercase tracking-[0.2em] text-[var(--ledger-ink-soft)]">
-                            {talent.type}
-                          </p>
-                          <p className="mt-1">{talent.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="ledger-empty-lines">
-                      <span>No talents recorded.</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="ledger-panel">
-                <SectionBar title="Insights & Afflictions" />
-                <div className="ledger-panel-body">
-                  {insightsAfflictions.length > 0 ? (
-                    <div className="space-y-2">
-                      {insightsAfflictions.map((line, index) => (
-                        <div key={`${line}-${index}`} className="ledger-line-row">
-                          <span className="ledger-line-fill">{line}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="ledger-empty-lines">
-                      <span>No insights or afflictions recorded.</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-2">
-              <div className="ledger-panel">
-                <SectionBar title="Memento" />
-                <div className="ledger-panel-body">
-                  <div className="ledger-empty-lines">
-                    <span>{memento || "No memento recorded."}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="ledger-panel">
-                <SectionBar title="Dice Pool Builder" />
-                <div className="ledger-panel-body space-y-3">
-                  <div className="grid gap-3 md:grid-cols-[1.2fr_0.55fr_0.55fr]">
-                    <label className="ledger-input-group">
-                      <span>Skill Check</span>
-                      <select
-                        value={selectedSkill}
-                        onChange={(event) => setSelectedSkill(event.target.value as SkillKey)}
-                        className="ledger-input"
-                      >
-                        {SKILL_DEFINITIONS.map((entry) => (
-                          <option key={entry.key} value={entry.key}>
-                            {entry.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className="ledger-input-group">
-                      <span>Item Bonus</span>
-                      <input
-                        type="number"
-                        value={appliedItemBonus}
-                        onChange={(event) => { setSelectedEquipment(""); setItemBonus(Number(event.target.value) || 0); }}
-                        className="ledger-input"
-                      />
-                    </label>
-
-                    <label className="ledger-input-group">
-                      <span>Advantages</span>
-                      <input
-                        type="number"
-                        value={advantages}
-                        onChange={(event) => setAdvantages(Number(event.target.value) || 0)}
-                        className="ledger-input"
-                      />
-                    </label>
-                  </div>
-
-                  <p className="ledger-helper-copy">Tap a skill for a quick roll including conditions. Use this builder for gear and advantages.</p>
-                  <label className="ledger-input-group"><span>Use applicable equipment</span>
-                    <select className="ledger-input" value={selectedEquipment} onChange={event => setSelectedEquipment(event.target.value)}>
-                      <option value="">No equipment selected</option>
-                      {usableProfiles.map(entry => <option key={entry.key} value={entry.key}>{entry.name} ({entry.profile.bonus >= 0 ? "+" : ""}{entry.profile.bonus})</option>)}
-                    </select>
-                    {selectedProfile && <small className="ledger-helper-copy">{selectedProfile.profile.effect} {selectedProfile.profile.requirements}</small>}
-                    <small className="ledger-helper-copy">Choose one applicable profile; the GM confirms its context. Armor penalties require worn-armor tracking and are not automatically applied here.</small>
-                  </label>
-                  <div className="ledger-helper-copy space-y-1">
-                    <a href={`/compendium?tab=skills&q=${encodeURIComponent(selectedSkillDefinition.label)}`} target="_blank" rel="noopener noreferrer" className="underline">Read {selectedSkillDefinition.label} rules</a>
-                    <p>Dice Pool = Attribute + Skill + Item Bonus + Advantages - Conditions</p>
-                    <p>
-                      {selectedSkillDefinition.attribute}: {attributeValue} / skill: {skillValue} / condition penalty: -
-                      {conditionPenalty}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="ledger-pool-result">{dicePool}d6</div>
-                    <DiceRollerModal
-                      initialDiceCount={dicePool}
-                      title={`${selectedSkillDefinition.label} Roll`}
-                      triggerLabel="Roll This Pool"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {inventory.length > 0 && <details className="ledger-panel p-4"><summary className="font-bold cursor-pointer">Equipment Uses &amp; Requirements</summary><div className="mt-3 grid gap-4 sm:grid-cols-2">{inventory.map(entry => <article key={entry.id} className="ledger-panel p-3"><h3 className="font-bold">{entry.item.name}</h3><EquipmentDetails item={entry.item} /></article>)}</div></details>}
-            <div id="sheet-equipment" className="grid gap-4 xl:grid-cols-2">
-              <div className="ledger-panel">
-                <SectionBar title="Temporary Gear" />
-                <div className="ledger-panel-body">
-                  <InventoryTable
-                    columns={["Item", "Bonus"]}
-                    rows={groupedInventory.temporaryGear.map((entry) => [
-                      `${entry.item.name}${entry.quantity > 1 ? ` x${entry.quantity}` : ""}`,
-                      equipmentBonusLabel(entry.item),
-                    ])}
-                    emptyLabel="Mark temporary gear by adding 'temporary' in its inventory notes."
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="ledger-panel">
-                  <SectionBar title="Weapons" />
-                  <div className="ledger-panel-body">
-                    <InventoryTable
-                      columns={["Weapon", "Damage", "Range", "Bonus"]}
-                      rows={groupedInventory.weapons.map((entry) => [
-                        `${entry.item.name}${entry.quantity > 1 ? ` x${entry.quantity}` : ""}`,
-                        entry.profile.damage !== null ? `${entry.profile.damage}` : "-",
-                        entry.profile.rangeMin === null ? entry.item.range || "Needs review" : `${entry.profile.rangeMin}${entry.profile.rangeMax === entry.profile.rangeMin ? "" : `-${entry.profile.rangeMax}`}`,
-                        entry.profile.bonus > 0 ? `+${entry.profile.bonus}` : `${entry.profile.bonus}`,
-                      ])}
-                      emptyLabel="No weapons assigned."
-                    />
-                  </div>
-                </div>
-
-                <div className="ledger-panel">
-                  <SectionBar title="Armor" />
-                  <div className="ledger-panel-body">
-                    <InventoryTable
-                      columns={["Type", "Protection", "Agility"]}
-                      rows={groupedInventory.armor.map((entry) => [
-                        `${entry.item.name}${entry.quantity > 1 ? ` x${entry.quantity}` : ""}`,
-                        entry.item.protection !== null ? `${entry.item.protection}d6` : "Needs review",
-                        entry.item.agilityPenalty !== null ? `-${entry.item.agilityPenalty}` : "Needs review",
-                      ])}
-                      emptyLabel="No armor assigned."
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+    <section id="sheet-panel-play" role="tabpanel" aria-labelledby="sheet-tab-play" hidden={activeTab !== "play"} tabIndex={0} className="sheet-tabpanel">
+      <div className="sheet-play-grid">
+        <div className="space-y-4 min-w-0">
+          <section className="ledger-sheet" aria-label="Attributes and conditions">
+            <div className="sheet-heading"><h2>Attributes & Conditions</h2><ReferenceHelp label="Conditions"><p>Each marked physical condition removes one die from Physique and Precision skills. Each mental condition removes one die from Logic and Empathy skills.</p><p>Broken is tracked separately, not a fourth penalty die. Consult the GM before acting while Broken.</p></ReferenceHelp></div>
+            <div className="sheet-attributes">{(["physique", "precision", "logic", "empathy"] as const).map(key => <div key={key} className="sheet-attribute"><div className="sheet-heading"><span className="capitalize">{key}</span><ReferenceHelp label={skillName(key)}><p>{SKILL_DEFINITIONS.filter(entry => entry.attribute === key).map(entry => entry.label).join(", ")}</p><p>This attribute contributes {attributes[key]} dice to its skills, before conditions and other modifiers.</p></ReferenceHelp></div><strong>{attributes[key]}</strong></div>)}</div>
+            <div className="sheet-conditions">{(["physical", "mental"] as const).map(domain => <div key={domain} className="sheet-condition-group" role="group" aria-label={`${domain} conditions`}><h3>{domain === "physical" ? "Physical / Physique & Precision" : "Mental / Logic & Empathy"}<span>-{domain === "physical" ? physicalLoad : mentalLoad} dice</span></h3><div className="ledger-condition-row">{(domain === "physical" ? PHYSICAL_CONDITIONS : MENTAL_CONDITIONS).map(condition => <ConditionToggle key={condition.key} label={condition.label} checked={Boolean((domain === "physical" ? physicalConditions : mentalConditions)[condition.key])} disabled={!canEdit || conditionSaving} onChange={() => handleConditionToggle(domain, condition.key)} />)}</div></div>)}</div>
+            {conditionSaving && <p role="status" className="ledger-helper-copy">Saving conditions...</p>}
+          </section>
+          <section className="ledger-sheet" aria-label="Skills">
+            <div className="sheet-heading"><h2>Skills</h2><ReferenceHelp label="Skill checks"><p>Prepare a skill to choose applicable gear and advantages. Quick roll uses only Attribute + Skill - Conditions, plus the armor you explicitly selected for this check.</p><p>Open a skill row to read its full rules. Inspecting does not change your prepared roll.</p></ReferenceHelp></div>
+            <p className="ledger-helper-copy mb-3">Rating in the square. Base dice beside it. Open for rules; Prepare for gear.</p>
+            <div className="sheet-skills-grid">{(["physique", "precision", "logic", "empathy"] as const).map(attribute => <div key={attribute} className="sheet-skill-group"><h3 className="capitalize">{attribute} <span>{attributes[attribute]}</span></h3>{SKILL_DEFINITIONS.filter(entry => entry.attribute === attribute).map(entry => {
+              const reference = props.skillReferences.find(skill => skill.key === entry.key);
+              const base = sheetPool({ skill: entry.key, attributes, skills, physical: physicalConditions, mental: mentalConditions, itemBonus: 0, advantages: 0, armor });
+              return <article key={entry.key} className={cn("sheet-skill", selectedSkill === entry.key && "is-prepared")}>
+                <div className="sheet-skill-overview"><details><summary><span>{entry.label}</span><small>{base.dice}d6 base</small><span className="ledger-skill-value">{skills[entry.key]}</span></summary><div className="sheet-reference-body">{reference ? <SkillDetails skill={reference} /> : <p>No reference entered yet. {entry.label} uses {attribute} and {entry.domain} conditions.</p>}</div></details><ReferenceHelp label={entry.label}><p>{reference?.description || `${entry.label} uses ${attribute}.`}</p><p>{base.attribute} attribute + {base.skill} skill - {base.conditions} conditions{base.armorPenalty ? ` - ${base.armorPenalty} armor` : ""} = {base.dice}d6 base.</p></ReferenceHelp></div>
+                <div className="sheet-skill-actions"><button type="button" className="sheet-prepare" aria-label={`Prepare ${entry.label}`} onClick={() => prepareCheck(entry.key)}>Prepare</button><DiceRollerModal initialDiceCount={base.dice} title={`${entry.label} / base check`} triggerAriaLabel={`Quick roll ${entry.label} / ${base.dice}d6`} triggerLabel={`${base.dice}d6`} /></div>
+              </article>;
+            })}</div>)}</div>
+          </section>
+          <section className="ledger-sheet" aria-label="Talents and effects"><div className="sheet-heading"><h2>Talents & Effects</h2><ReferenceHelp label="Talents"><p>Talents apply only in their described circumstances. Add a relevant dice modifier to Advantages after confirming it with the GM; they are not added automatically.</p></ReferenceHelp></div>
+            <div className="space-y-2 mt-3">{talents.length ? talents.map(talent => <div key={talent.id} className="sheet-reference-row"><CreationChoice title={talent.name} summary={talent.type.replaceAll("_", " ")}><p className="whitespace-pre-wrap">{talent.description}</p></CreationChoice><ReferenceHelp label={talent.name}><p>{talent.description}</p></ReferenceHelp></div>) : <p className="ledger-helper-copy">No talents recorded.</p>}</div>
+            <details className="sheet-secondary-details"><summary>Insights & Afflictions ({insightsAfflictions.length})</summary>{insightsAfflictions.length ? <ul className="list-disc pl-5 space-y-2">{insightsAfflictions.map((line, index) => <li key={index}>{line}</li>)}</ul> : <p>None recorded.</p>}</details>
+            <details className="sheet-secondary-details"><summary>Memento</summary><p>{memento || "No memento recorded."}</p></details>
+          </section>
+          {props.castleBenefits.length > 0 && <details className="ledger-panel p-4"><summary className="font-bold cursor-pointer">Castle Benefits ({props.castleBenefits.length})</summary><CharacterCastleBenefits benefits={props.castleBenefits} physicalBase={attributes.physique + attributes.precision} mentalBase={attributes.logic + attributes.empathy} /></details>}
         </div>
-      </section>
+        <aside className="ledger-sheet sheet-check" aria-label="Prepared skill check">
+          <div className="sheet-heading"><h2 ref={checkHeading} tabIndex={-1}>Prepared Check</h2><ReferenceHelp label="Dice pool"><p>Attribute + Skill + one applicable gear profile + Advantages - Conditions - selected armor&apos;s Agility penalty.</p><p>Modifiers are for this check only; nothing is spent or consumed. The GM confirms context, range, and requirements.</p></ReferenceHelp></div>
+          <div className="sheet-roll-total"><output aria-live="polite" aria-label="Prepared dice pool"><strong>{pool.dice}</strong> d6</output><DiceRollerModal initialDiceCount={pool.dice} title={`${selectedSkillDefinition.label}${selectedProfile ? ` / ${selectedProfile.name}` : ""}`} triggerLabel="Roll prepared check" /></div>
+          <label className="ledger-input-group"><span>Skill check</span><select value={selectedSkill} onChange={event => { setSelectedSkill(event.target.value as SkillKey); setSelectedEquipment(""); setSelectedArmor(""); setItemBonus(0); setAdvantages(0); }} className="ledger-input">{SKILL_DEFINITIONS.map(entry => <option key={entry.key} value={entry.key}>{entry.label}</option>)}</select></label>
+          <label className="ledger-input-group"><span>Applicable gear / one profile</span><select className="ledger-input" value={selectedProfile ? selectedEquipment : ""} onChange={event => { setSelectedEquipment(event.target.value); setItemBonus(0); }}><option value="">No gear / manual bonus</option>{usableProfiles.map(entry => <option key={entry.key} value={entry.key}>{entry.name} ({entry.profile.bonus >= 0 ? "+" : ""}{entry.profile.bonus})</option>)}</select></label>
+          {!usableProfiles.length && <p className="ledger-helper-copy">No carried gear has a profile for this skill.</p>}
+          {selectedProfile && <div className="sheet-use-callout"><strong>{selectedProfile.name}</strong>{selectedProfile.profile.kind === "ATTACK" && <p>Damage {selectedProfile.profile.damage ?? "?"} Conditions / Zones {selectedProfile.profile.rangeMin === null ? "Needs GM review" : `${selectedProfile.profile.rangeMin}${selectedProfile.profile.rangeMax === selectedProfile.profile.rangeMin ? "" : `-${selectedProfile.profile.rangeMax}`}`}</p>}<p>{selectedProfile.profile.effect}</p>{selectedProfile.profile.requirements && <p className="italic">{selectedProfile.profile.requirements}</p>}</div>}
+          <div className="grid grid-cols-2 gap-3"><label className="ledger-input-group"><span>{selectedProfile ? "Gear bonus" : "Manual gear bonus"}</span><input type="number" min={-20} max={20} step={1} value={appliedItemBonus} disabled={!!selectedProfile} onChange={event => setItemBonus(rollModifier(Number(event.target.value)))} className="ledger-input" /></label><label className="ledger-input-group"><span>Advantages / other</span><input type="number" min={-20} max={20} step={1} value={advantages} onChange={event => setAdvantages(rollModifier(Number(event.target.value)))} className="ledger-input" /></label></div>
+          <p className="ledger-helper-copy">Gear replaces the manual bonus; it never stacks with itself. Other situational modifiers and talents need GM confirmation.</p>
+          {inventory.some(entry => entry.quantity > 0 && entry.item.type === "ARMOR") && <label className="ledger-input-group"><span>Armor for this check (not saved)</span><select className="ledger-input" value={selectedArmor} onChange={event => setSelectedArmor(event.target.value)}><option value="">No armor selected</option>{inventory.filter(entry => entry.quantity > 0 && entry.item.type === "ARMOR").map(entry => <option key={entry.id} value={entry.id}>{entry.item.name} / Agility {entry.item.agilityPenalty === null ? "needs review" : `-${entry.item.agilityPenalty}`}</option>)}</select><small className="ledger-helper-copy">Only reduces Agility. Armor protection is rolled separately in Equipment.</small></label>}
+          {armor?.agilityPenalty === null && selectedSkill === "agility" && <p className="ledger-status">This armor&apos;s penalty needs review. Confirm a manual adjustment with the GM.</p>}
+          <dl className="sheet-pool-breakdown"><div><dt className="capitalize">{selectedSkillDefinition.attribute}</dt><dd>{pool.attribute}</dd></div><div><dt>{selectedSkillDefinition.label}</dt><dd>+{pool.skill}</dd></div><div><dt>Gear</dt><dd>{appliedItemBonus >= 0 ? "+" : ""}{appliedItemBonus}</dd></div><div><dt>Advantages / other</dt><dd>{advantages >= 0 ? "+" : ""}{advantages}</dd></div><div><dt>{selectedSkillDefinition.domain === "physical" ? "Physical" : "Mental"} conditions</dt><dd>-{pool.conditions}</dd></div>{pool.armorPenalty > 0 && <div><dt>Selected armor</dt><dd>-{pool.armorPenalty}</dd></div>}</dl>
+          {(physicalConditions.broken || mentalConditions.broken) && <p className="ledger-status">Broken is marked. Confirm with the GM whether this action is possible.</p>}
+          {pool.raw <= 0 && <p className="ledger-helper-copy">No dice remain. Confirm modifiers or the action with the GM.</p>}
+          {pool.raw > 50 && <p className="ledger-helper-copy">The roller is limited to 50 dice.</p>}
+          <button type="button" className="ledger-button" onClick={() => { setSelectedEquipment(""); setSelectedArmor(""); setItemBonus(0); setAdvantages(0); }}>Clear check modifiers</button>
+        </aside>
+      </div>
+      <div className="sheet-mobile-check" aria-label="Mobile prepared check">
+        <div><strong>{selectedSkillDefinition.label}</strong><span>{pool.dice}d6 prepared</span></div>
+        <button type="button" className="ledger-button" onClick={() => setFocusCheck(true)}>Edit check</button>
+        <DiceRollerModal initialDiceCount={pool.dice} title={`${selectedSkillDefinition.label}${selectedProfile ? ` / ${selectedProfile.name}` : ""}`} triggerLabel="Roll" />
+      </div>
+    </section>
 
-      <section id="sheet-notes" className="ledger-sheet">
-        {recoveredJournal && <p className="ledger-status mb-3">Recovered unsaved notes from this tab. They will be saved automatically.</p>}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionBar title="Campaign Notes" />
-          <p role="status" className="ledger-helper-copy">
-            {journalStatus === "saving" && "Saving"}
-            {journalStatus === "saved" && "Saved"}
-            {journalStatus === "error" && "Save failed"}
-            {journalStatus === "idle" && (canEdit ? "Autosaves as you type" : "Read-only")}
-          </p>
-          {canEdit && <button type="button" className="ledger-button" disabled={journalStatus === "saving"} onClick={() => setJournalRetry(value => value + 1)}>{journalStatus === "error" ? "Retry Save" : "Save Notes & Relationships"}</button>}
-        </div>
+    <section id="sheet-panel-equipment" role="tabpanel" aria-labelledby="sheet-tab-equipment" hidden={activeTab !== "equipment"} tabIndex={0} className="sheet-tabpanel ledger-sheet">
+      <div className="sheet-heading"><h2>Equipment</h2><ReferenceHelp label="Equipment"><p>Choose a use profile to prepare the relevant skill check. Zero-bonus profiles still show attack damage, range, and requirements.</p><p>Quantity is carried stock, not an automatic count of remaining doses. These buttons do not spend gear, ammunition, or doses.</p></ReferenceHelp></div>
+      <div className="sheet-equipment-toolbar"><label className="ledger-input-group"><span>Find carried equipment</span><input type="search" className="ledger-input" placeholder="Name, skill, effect..." value={equipmentQuery} onChange={event => setEquipmentQuery(event.target.value)} /></label><label className="ledger-input-group"><span>Equipment category</span><select className="ledger-input" value={equipmentCategory} onChange={event => setEquipmentCategory(event.target.value)}><option value="all">All carried equipment</option><option value="WEAPON">Weapons</option><option value="ARMOR">Armor</option><option value="GEAR">Equipment</option><option value="MAGIC">Magic items</option><option value="temporary">Temporary / borrowed</option></select></label></div>
+      <p role="status" className="ledger-helper-copy mb-3">{visibleInventory.length} of {inventory.length} inventory entries / Resources {resources} / Capital {capital}</p>
+      <div className="sheet-equipment-grid">{visibleInventory.map(entry => <article key={entry.id} className="sheet-equipment-entry">
+        <div className="sheet-reference-row"><CreationChoice title={entry.item.name} summary={<>{typeName(entry.item.type)} / Quantity {entry.quantity}{isTemporaryGear(entry) ? " / Temporary" : ""}{entry.item.type === "ARMOR" ? ` / Protection ${entry.item.protection ?? "?"}d6` : ` / ${equipmentBonusLabel(entry.item)}${profilesFor(entry.item).some(profile => profile.kind !== "NARRATIVE") ? " dice" : ""}`}</>}><EquipmentDetails item={entry.item} />{entry.notes && <p className="sheet-use-callout whitespace-pre-wrap">Inventory notes: {entry.notes}</p>}</CreationChoice><ReferenceHelp label={entry.item.name}><EquipmentDetails item={entry.item} /></ReferenceHelp></div>
+        <div className="sheet-gear-actions">{profilesFor(entry.item).filter(profile => profile.kind !== "NARRATIVE").flatMap(profile => profile.skills.filter((key): key is SkillKey => SKILL_DEFINITIONS.some(skill => skill.key === key)).map(key => <button key={`${profile.id}:${key}`} type="button" className="ledger-button" aria-label={`Use ${entry.item.name}: ${profile.label} / ${skillName(key)}`} disabled={entry.quantity <= 0} onClick={() => prepareCheck(key, `${entry.id}:${profile.id}`)}>Use for {skillName(key)}{profilesFor(entry.item).filter(use => use.kind !== "NARRATIVE").length > 1 ? ` / ${profile.label}` : ""}</button>))}{entry.item.type === "ARMOR" && entry.item.protection !== null && entry.quantity > 0 && <DiceRollerModal initialDiceCount={entry.item.protection} title={`${entry.item.name} / protection`} triggerLabel={`Roll protection ${entry.item.protection}d6`} allowPush={false} />}</div>
+      </article>)}</div>
+      {!visibleInventory.length && <p className="sheet-empty">{inventory.length ? "No equipment matches. Try a different category or search." : "No equipment recorded. Party stash equipment is managed separately on the party page."}</p>}
+    </section>
 
-        <div className="mt-4">
-          <textarea
-            rows={10}
-            aria-label="Campaign notes"
-            value={notes}
-            disabled={!canEdit}
-            onChange={(event) => setNotes(event.target.value)}
-            className="ledger-textarea h-64"
-            placeholder="Session notes, clues, debts, suspicions, and private reminders..."
-          />
-        </div>
-      </section>
-    </div>
-  );
+    <section id="sheet-panel-background" role="tabpanel" aria-labelledby="sheet-tab-background" hidden={activeTab !== "background"} tabIndex={0} className="sheet-tabpanel ledger-sheet">
+      <div className="sheet-heading"><h2>Background & Relationships</h2><ReferenceHelp label="The Sight"><p>All player characters can perceive Vaesen. Your trauma describes how the Sight awakened.</p></ReferenceHelp></div>
+      <div className="sheet-background-grid"><div className="space-y-4"><FieldBlock label="Motivation"><span className="ledger-multiline-text">{motivation}</span></FieldBlock><FieldBlock label="Trauma / The Sight"><span className="ledger-multiline-text">{trauma}</span></FieldBlock><FieldBlock label="Dark Secret"><span className="ledger-multiline-text">{darkSecret}</span></FieldBlock><FieldBlock label="Memento"><span className="ledger-multiline-text">{memento || "No memento recorded."}</span></FieldBlock><div className="sheet-heading"><h3>Resources {resources} / Capital {capital}</h3><ReferenceHelp label="Resources"><p>Resources and Capital are your recorded values. Equipment availability and temporary castle benefits do not automatically change either value.</p></ReferenceHelp></div></div><div><label className="ledger-input-group"><span>Relationships</span><textarea rows={12} maxLength={50000} value={relationships} readOnly={!canEdit} onChange={event => setRelationships(event.target.value)} className="ledger-textarea" placeholder="Relationships with the other player characters..." /></label><p className="ledger-helper-copy mt-2">{canEdit ? "Autosaves as you type. Switching tabs keeps your draft." : "Read-only."}</p></div></div>
+    </section>
+    <section id="sheet-panel-notes" role="tabpanel" aria-labelledby="sheet-tab-notes" hidden={activeTab !== "notes"} tabIndex={0} className="sheet-tabpanel ledger-sheet">
+      <div className="sheet-heading"><h2>Campaign Notes</h2>{canEdit && <button type="button" className="ledger-button" disabled={journalStatus === "saving"} onClick={() => setJournalRetry(value => value + 1)}>{journalStatus === "error" ? "Retry Save" : "Save Notes & Relationships"}</button>}</div><label className="ledger-input-group"><span>Private journal</span><textarea rows={16} maxLength={50000} value={notes} readOnly={!canEdit} onChange={event => setNotes(event.target.value)} className="ledger-textarea" placeholder="Session notes, clues, debts, suspicions, and private reminders..." aria-label="Campaign notes" /></label>
+    </section>
+  </div>;
 }

@@ -17,7 +17,7 @@ export default async function CompendiumPage() {
   const [items, talents, archetypes, npcs, vaesen, skills] = await Promise.all([
     prisma.item.findMany({ include: equipmentInclude, orderBy: { name: "asc" } }),
     prisma.talent.findMany({ orderBy: { name: "asc" } }),
-    prisma.archetype.findMany({ orderBy: { name: "asc" }, include: archetypeTemplateInclude }),
+    prisma.archetype.findMany({ where: { archivedAt: null }, orderBy: { name: "asc" }, include: archetypeTemplateInclude }),
     canViewGmContent ? prisma.nPC.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
     canViewGmContent ? prisma.vaesen.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
     prisma.skillDefinition.findMany({ orderBy: { name: "asc" } }),

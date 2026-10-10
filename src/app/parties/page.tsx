@@ -15,7 +15,7 @@ export default async function PartiesPage() {
           where: { gmId: session.user.id },
           include: {
             headquarters: true,
-            _count: { select: { members: true, mysteries: true } },
+            _count: { select: { members: { where: { character: { archivedAt: null } } }, mysteries: true } },
           },
           orderBy: { name: "asc" },
         })
@@ -26,6 +26,7 @@ export default async function PartiesPage() {
           some: {
             character: {
               userId: session.user.id,
+              archivedAt: null,
             },
           },
         },
@@ -33,7 +34,7 @@ export default async function PartiesPage() {
       include: {
         headquarters: true,
         gm: true,
-        _count: { select: { members: true, mysteries: true } },
+        _count: { select: { members: { where: { character: { archivedAt: null } } }, mysteries: true } },
       },
       orderBy: { name: "asc" },
     }),
@@ -42,7 +43,7 @@ export default async function PartiesPage() {
           include: {
             headquarters: true,
             gm: true,
-            _count: { select: { members: true, mysteries: true } },
+            _count: { select: { members: { where: { character: { archivedAt: null } } }, mysteries: true } },
           },
           orderBy: { name: "asc" },
         })

@@ -2,125 +2,31 @@ import type { Talent } from "@prisma/client";
 import type { WizardStepProps } from "./wizard";
 import { useState } from "react";
 import { startingTalentsFor, type ArchetypeTemplate } from "@/lib/archetype-template";
+import CreationChoice from "@/components/creation-choice";
+import ReferenceHelp from "@/components/reference-help";
 
-export default function Step5Details({ data, update, talents, archetype, onNext, onPrev }: WizardStepProps & { talents: Talent[]; archetype?: ArchetypeTemplate }) {
-
-  // Filter talents to general ones or ones matching this archetype
-  const availableTalents = startingTalentsFor(archetype, talents);
+export default function Step5Details({ data, update, talents, archetype }: WizardStepProps & { talents: Talent[]; archetype?: ArchetypeTemplate }) {
+  const available = startingTalentsFor(archetype, talents);
   const [relatedPc, setRelatedPc] = useState("");
-  function suggestions(label: string, options: string[] | undefined, field: "motivation" | "trauma" | "darkSecret") {
-    return options?.length ? <label className="block mt-2 text-sm">Suggested {label}<select className="ledger-input mt-1 w-full" value="" onChange={event => { if(event.target.value) update({ [field]: event.target.value }); }}>
-      <option value="">Choose a suggestion or write your own</option>{options.map(option => <option key={option}>{option}</option>)}
-    </select></label> : null;
-  }
-
-  const isValid =
-    data.talentId !== "" &&
-    data.motivation.trim() !== "" &&
-    data.trauma.trim() !== "" &&
-    data.darkSecret.trim() !== "";
-
-  return (
-    <div className="space-y-8 animate-in fade-in flex flex-col h-full">
-      <div>
-        <h2 className="text-2xl font-bold text-[var(--ledger-ink)] mb-2">Background & Talent</h2>
-        <p className="text-[var(--ledger-ink-soft)]">Define what drives you, what haunts you, and choose one starting Talent.</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Text Fields */}
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-create-step5-details-tsx-0">Motivation</label>
-            <textarea id="field-create-step5-details-tsx-0"
-              required rows={2} value={data.motivation} onChange={e => update({ motivation: e.target.value })}
-              placeholder="Why do you hunt Vaesen?"
-              className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65"
-            />
-            {suggestions("Motivation", archetype?.motivationOptions, "motivation")}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-create-step5-details-tsx-1">Trauma</label>
-            <textarea id="field-create-step5-details-tsx-1"
-              required rows={2} value={data.trauma} onChange={e => update({ trauma: e.target.value })}
-              placeholder="What terrible event opened your eyes?"
-              className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65"
-            />
-            {suggestions("Trauma", archetype?.traumaOptions, "trauma")}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-create-step5-details-tsx-2">Dark Secret</label>
-            <textarea id="field-create-step5-details-tsx-2"
-              required rows={2} value={data.darkSecret} onChange={e => update({ darkSecret: e.target.value })}
-              placeholder="What are you hiding from the others?"
-              className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65"
-            />
-            {suggestions("Dark Secret", archetype?.darkSecretOptions, "darkSecret")}
-          </div>
-          <div>
-            <label className="block font-semibold">Relationships<textarea rows={4} maxLength={50000} value={data.relationships} onChange={event => update({ relationships: event.target.value })} className="ledger-textarea mt-2 w-full" placeholder="Other PC: your relationship" /></label>
-            <p className="mt-2 text-sm">Write one relationship for each other PC. You can finish this later when you join a party.</p>
-            {!!archetype?.relationshipOptions.length && <div className="mt-3 space-y-2">
-              <label className="block text-sm">Other PC&apos;s Name<input value={relatedPc} maxLength={100} onChange={event => setRelatedPc(event.target.value)} className="ledger-input mt-1 w-full" /></label>
-              <label className="block text-sm">Suggested Relationship<select value="" disabled={!relatedPc.trim()} className="ledger-input mt-1 w-full" onChange={event => { if (event.target.value && relatedPc.trim()) { update({ relationships: [data.relationships.trim(), `${relatedPc.trim()}: ${event.target.value}`].filter(Boolean).join("\n") }); setRelatedPc(""); } }}>
-                <option value="">Add a relationship for this PC</option>{archetype.relationshipOptions.map(option => <option key={option}>{option}</option>)}
-              </select></label>
-            </div>}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-1" htmlFor="field-create-step5-details-tsx-3">Memento (Optional)</label>
-            <input id="field-create-step5-details-tsx-3"
-              type="text" value={data.memento} onChange={e => update({ memento: e.target.value })}
-              placeholder="An object you hold dear..."
-              className="w-full bg-[var(--ledger-paper)] border border-[var(--ledger-line)]/55 rounded-md px-3 py-2 text-[var(--ledger-ink)] focus:outline-none focus:border-[var(--ledger-accent)]/65"
-            />
-          </div>
-        </div>
-
-        {/* Talent Selection */}
-        <div>
-           <label className="block text-sm font-medium text-[var(--ledger-ink)] mb-2">Starting Talent (Choose 1)</label>
-           <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-             {availableTalents.map((t) => {
-                const selected = data.talentId === t.id;
-                return (
-                  <button
-                    key={t.id}
-                   aria-pressed={selected}
-                    onClick={() => update({ talentId: t.id })}
-                    className={`w-full text-left p-3 rounded-md border text-sm transition-all ${
-                       selected
-                        ? 'bg-[rgba(127,48,40,0.12)] border-[var(--ledger-accent)]/65 shadow-[0_0_10px_rgba(99,102,241,0.1)]'
-                        : 'bg-[var(--ledger-paper)] border-[var(--ledger-line)]/55 hover:border-[var(--ledger-line)]/55'
-                    }`}
-                  >
-                    <div className="flex flex-wrap gap-3 justify-between items-center mb-1">
-                      <span className={`font-bold ${selected ? 'text-[var(--ledger-ink)]' : 'text-[var(--ledger-ink)]'}`}>{t.name}</span>
-                      <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${t.type === 'ARCHETYPE' ? 'bg-[rgba(127,48,40,0.12)] text-[var(--ledger-accent)]' : 'bg-[var(--ledger-paper-deep)] text-[var(--ledger-ink-soft)]'}`}>{t.type}</span>
-                    </div>
-                    <p className="text-[var(--ledger-ink-soft)] line-clamp-2">{t.description}</p>
-                  </button>
-                )
-             })}
-             {availableTalents.length === 0 && (
-               <p className="text-sm text-[var(--ledger-ink-soft)] italic">No associated talents found in the database.</p>
-             )}
-           </div>
-        </div>
-      </div>
-
-      <div className="mt-8 flex flex-wrap gap-3 justify-between flex-grow items-end border-t border-[var(--ledger-line)]/55 pt-6">
-        <button onClick={onPrev} className="text-[var(--ledger-ink-soft)] hover:text-[var(--ledger-ink)] px-4 py-2 transition-colors">
-          Back
-        </button>
-        <button
-          disabled={!isValid}
-          onClick={onNext}
-          className="bg-[rgba(127,48,40,0.12)] hover:bg-[rgba(127,48,40,0.12)] disabled:opacity-50 disabled:cursor-not-allowed text-[var(--ledger-ink)] px-8 py-3 rounded-md font-bold transition-all"
-        >
-          {isValid ? "Next Step: Equipment" : "Fill Required Fields"}
-        </button>
-      </div>
-    </div>
-  )
+  const fields = [
+    { field: "motivation", title: "Motivation", help: "What drives your hunter to investigate the supernatural?", options: archetype?.motivationOptions },
+    { field: "trauma", title: "Trauma", help: "The frightening encounter that gave you the Sight: the ability to see vaesen.", options: archetype?.traumaOptions },
+    { field: "darkSecret", title: "Dark secret", help: "Something your hunter wants to keep hidden. This is private character information.", options: archetype?.darkSecretOptions },
+  ] as const;
+  return <div className="space-y-7">
+    <section className="space-y-3"><div className="flex items-center gap-2"><h2 className="creation-section-title">Starting talent</h2><ReferenceHelp label="Starting talent">Choose exactly one of the talents available to your archetype. Open an entry to read its full effect before selecting it.</ReferenceHelp></div>
+      {available.map(talent => <CreationChoice key={talent.id} title={talent.name} summary={talent.type === "ARCHETYPE" ? "Archetype talent" : "General talent"} selected={data.talentId === talent.id} onChoose={() => update({ talentId: talent.id })}><p className="whitespace-pre-wrap leading-relaxed">{talent.description}</p></CreationChoice>)}
+      {!available.length && <p className="ledger-status">No starting talents are configured. Ask an administrator to link talents to this archetype.</p>}
+    </section>
+    <section className="space-y-5"><h2 className="creation-section-title">What haunts you</h2>{fields.map(({ field, title, help, options }) => <div key={field}>
+      <div className="flex items-center gap-2"><label htmlFor={`creation-${field}`} className="font-bold">{title} <span className="text-sm font-normal">(required)</span></label><ReferenceHelp label={title}>{help}</ReferenceHelp></div>
+      <textarea id={`creation-${field}`} required rows={3} maxLength={10000} className="ledger-textarea w-full mt-2" value={data[field]} onChange={event => update({ [field]: event.target.value })} placeholder={help} />
+      {!!options?.length && <details className="creation-nested mt-2"><summary>Explore {archetype?.name} suggestions</summary><div className="mt-3 space-y-2">{options.map(option => <button type="button" key={option} className="creation-suggestion" onClick={() => { if (!data[field].trim() || data[field] === option || window.confirm(`Replace your current ${title.toLowerCase()} with this suggestion?`)) update({ [field]: option }); }}>{option}</button>)}</div><p className="text-sm mt-2">Suggestions are optional; you may edit them or write your own.</p></details>}
+    </div>)}</section>
+    <section className="space-y-3"><div className="flex items-center gap-2"><label className="font-bold" htmlFor="creation-relationships">Relationships</label><ReferenceHelp label="Relationships">Describe your relationship with each other player character. You may complete this later when you join a party.</ReferenceHelp></div>
+      <textarea id="creation-relationships" rows={3} maxLength={50000} value={data.relationships} onChange={event => update({ relationships: event.target.value })} className="ledger-textarea w-full" placeholder="Other PC: your relationship" />
+      {!!archetype?.relationshipOptions.length && <details className="creation-nested"><summary>Suggested relationships</summary><label className="block font-bold text-sm mt-3">Other PC&apos;s name<input className="ledger-input w-full mt-2" maxLength={100} value={relatedPc} onChange={event => setRelatedPc(event.target.value)} /></label><div className="space-y-2 mt-3">{archetype.relationshipOptions.map(option => <button type="button" className="creation-suggestion" key={option} disabled={!relatedPc.trim()} onClick={() => { const value = [data.relationships.trim(), `${relatedPc.trim()}: ${option}`].filter(Boolean).join("\n"); if (value.length <= 50000) { update({ relationships: value }); setRelatedPc(""); } }}>{option}</button>)}</div></details>}
+    </section>
+    <section><div className="flex items-center gap-2"><label className="font-bold" htmlFor="creation-memento">Memento (optional)</label><ReferenceHelp label="Memento">An object with personal significance to your hunter. Describe your own; it is not an automatic equipment bonus.</ReferenceHelp></div><input id="creation-memento" className="ledger-input w-full mt-2" maxLength={1000} value={data.memento} onChange={event => update({ memento: event.target.value })} placeholder="An object you hold dear" /></section>
+  </div>;
 }

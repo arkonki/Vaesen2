@@ -8,7 +8,7 @@ import { saveEquipment } from "@/lib/equipment-service";
 import bcrypt from "bcryptjs";
 import { publicUserSelect } from "@/lib/security";
 import { passwordSchema, userProfileSchema } from "@/lib/user-validation";
-import { saveArchetypeTemplate } from "@/lib/archetype-service";
+import { saveArchetypeTemplate, setArchetypeArchived } from "@/lib/archetype-service";
 import { skillReferenceSchema, SKILL_ATTRIBUTES } from "@/lib/skill-reference";
 import { skillName } from "@/lib/equipment";
 
@@ -39,19 +39,22 @@ export async function createArchetype(data: unknown) {
   return created;
 }
 
-export async function updateArchetype(id: string, data: unknown) {
+export async function updateArchetype(id: string, data: unknown, expectedRevision: number) {
   await requireAdmin();
-  const updated = await saveArchetypeTemplate(data, id);
+  const updated = await saveArchetypeTemplate(data, id, expectedRevision);
   revalidatePath("/admin/archetypes");
   revalidatePath("/characters/create");
   revalidatePath("/compendium");
   return updated;
 }
 
-export async function deleteArchetype(id: string) {
+export async function archiveArchetype(input: unknown) {
   await requireAdmin();
-  await prisma.archetype.delete({ where: { id } });
+  const saved = await setArchetypeArchived(input);
   revalidatePath("/admin/archetypes");
+  revalidatePath("/characters/create");
+  revalidatePath("/compendium");
+  return saved;
 }
 
 // ------ TALENTS ------ //

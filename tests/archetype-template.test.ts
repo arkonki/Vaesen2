@@ -9,7 +9,7 @@ const map = {...item,id:uuid(3),name:"Map book"};
 const talent: Talent = { bookKey:null,id:uuid(4),name:"Bookworm",description:"Test",type:"GENERAL",archetypeId:null};
 const fields = {name:"Academic",mainAttribute:"logic",mainSkill:"learning",startingResourcesMin:4,startingResourcesMax:6};
 const archetype: ArchetypeTemplate = {
-  bookKey:null,sourceBook:null,sourcePage:null,
+  bookKey:null,sourceBook:null,sourcePage:null,archivedAt:null,revision:0,
   ...fields,id:uuid(1),flavorText:"A scholar of the unseen.",firstNameOptions:["Astrid"],lastNameOptions:["Brugge"],
   motivationOptions:["Charting the unknown"],traumaOptions:["A mermaid's magic"],darkSecretOptions:["Hunted"],relationshipOptions:["A good friend"],
   startingTalents:[{talentId:talent.id,talent}],

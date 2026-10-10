@@ -48,7 +48,7 @@ async function context(
     where: { headquartersId: hqId },
   });
   const members = await tx.partyMember.findMany({
-    where: { partyId },
+    where: { partyId, character: { archivedAt: null } },
     include: { character: { include: { archetype: true, skill: true } } },
   });
   const facts = await tx.castleFact.findMany({
@@ -476,8 +476,10 @@ export async function activateCastleBenefit(hqId: string, input: unknown) {
       throw new Error(
         "Give the recruit a GM-only motivation, Dark Secret and shared relationships first",
       );
+    // Serialize party benefits against removal without touching stored memberships.
+    await tx.$queryRaw`SELECT c.id FROM "Character" c JOIN "PartyMember" m ON m."characterId" = c.id WHERE m."partyId" = ${partyId} AND c."archivedAt" IS NULL ORDER BY c.id FOR UPDATE OF c`;
     const members = await tx.partyMember.findMany({
-      where: { partyId },
+      where: { partyId, character: { archivedAt: null } },
       include: { character: true },
     });
     if (!members.length) throw new Error("This party has no investigators");
@@ -711,7 +713,7 @@ export async function activateCastleBenefit(hqId: string, input: unknown) {
     }
   });
   const members = await prisma.partyMember.findMany({
-    where: { partyId },
+    where: { partyId, character: { archivedAt: null } },
     select: { characterId: true },
   });
   for (const m of members) revalidatePath(`/characters/${m.characterId}`);

@@ -3,34 +3,32 @@ import { requireAdminSession } from "@/lib/access";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { Plus, Edit2 } from "lucide-react";
-import ConfirmDelete from "@/components/confirm-delete";
+import ArchiveControl from "./archive-control";
 import AdminSearch from "@/components/admin-search";
 import ArchetypeForm from "./form";
-import { deleteArchetype } from "@/app/admin/actions";
-import { revalidatePath } from "next/cache";
+import { notFound } from "next/navigation";
 import { archetypeTemplateInclude } from "@/lib/archetype-template";
 
 export default async function ArchetypesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ action?: string; id?: string; q?: string }>;
+  searchParams: Promise<{ action?: string; id?: string; q?: string; view?: string }>;
 }) {
   await requireAdminSession();
   const query = await searchParams;
-  const archetypes = await prisma.archetype.findMany({ where: query.q ? { name: { contains: query.q.trim(), mode: "insensitive" } } : {}, orderBy: { name: "asc" } });
+  const archived = query.view === "archived";
+  const [archetypes, activeCount, archivedCount] = await Promise.all([
+    prisma.archetype.findMany({ where: { archivedAt: archived ? { not: null } : null, ...(query.q ? { name: { contains: query.q.trim(), mode: "insensitive" } } : {}) }, include: { _count: { select: { characters: true, startingTalents: true, equipmentGroups: true } } }, orderBy: { name: "asc" } }),
+    prisma.archetype.count({ where: { archivedAt: null } }),
+    prisma.archetype.count({ where: { archivedAt: { not: null } } }),
+  ]);
 
   const isCreating = query.action === "create";
   const editingId = query.id;
   const editingArchetype = editingId ? await prisma.archetype.findUnique({ where: { id: editingId }, include: archetypeTemplateInclude }) : null;
+  if (editingId && !editingArchetype) notFound();
   const talents = isCreating || editingId ? await prisma.talent.findMany({ orderBy: { name: "asc" } }) : [];
   const items = isCreating || editingId ? await prisma.item.findMany({ where: { type: { in: [...CARRIED_TYPES] } }, orderBy: { name: "asc" } }) : [];
-
-  async function handleDelete(data: FormData) {
-    "use server";
-    const id = data.get("id") as string;
-    await deleteArchetype(id);
-    revalidatePath("/admin/archetypes");
-  }
 
   return (
     <div className="space-y-6">
@@ -44,7 +42,11 @@ export default async function ArchetypesPage({
         )}
       </div>
 
-      {!isCreating && !editingId && <AdminSearch query={query.q} count={archetypes.length} />}
+      {!isCreating && !editingId && <>
+        <p>Remove archives an entry; it never deletes characters or their records. Book templates and custom entries are labeled so duplicates are easy to identify.</p>
+        <nav aria-label="Archetype status" className="flex flex-wrap gap-3"><Link href="/admin/archetypes" aria-current={!archived ? "page" : undefined} className="ledger-button">Active ({activeCount})</Link><Link href="/admin/archetypes?view=archived" aria-current={archived ? "page" : undefined} className="ledger-button">Archived ({archivedCount})</Link></nav>
+        <AdminSearch query={query.q} count={archetypes.length} hiddenFields={archived ? { view: "archived" } : {}} />
+      </>}
 
       {(isCreating || editingArchetype) ? (
         <div className="bg-[var(--ledger-surface-strong)] border border-[var(--ledger-line)]/55 rounded-lg p-6">
@@ -61,27 +63,29 @@ export default async function ArchetypesPage({
                 <th className="px-6 py-4 font-medium">Name</th>
                 <th className="px-6 py-4 font-medium">Main Attribute</th>
                 <th className="px-6 py-4 font-medium">Main Skill</th>
+                <th className="px-6 py-4 font-medium">Used By</th>
                 <th className="px-6 py-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800">
               {archetypes.map((arch) => (
                 <tr key={arch.id} className="hover:bg-[var(--ledger-paper-deep)] transition-colors">
-                  <td className="px-6 py-4 font-medium text-[var(--ledger-ink)]">{arch.name}</td>
+                  <td className="px-6 py-4 font-medium text-[var(--ledger-ink)]"><span>{arch.name}</span><p className="mt-1 text-xs">{arch.bookKey ? `Core book / p. ${arch.sourcePage ?? "?"}` : "Custom / legacy"}{arch.archivedAt ? " / Archived" : ""}</p></td>
                   <td className="px-6 py-4">{arch.mainAttribute}</td>
                   <td className="px-6 py-4">{arch.mainSkill}</td>
+                  <td className="px-6 py-4">{arch._count.characters} characters<br />{arch._count.startingTalents} starting talents</td>
                   <td className="px-6 py-4 text-right flex justify-end gap-3">
                     <Link href={`?id=${arch.id}`} aria-label={`Edit ${arch.name}`} className="ledger-button text-[var(--ledger-accent)]">
                       <Edit2 className="w-4 h-4" aria-hidden="true" /><span>Edit</span>
                     </Link>
-                    <ConfirmDelete id={arch.id} name={arch.name} action={handleDelete} />
+                    <ArchiveControl id={arch.id} name={arch.name} revision={arch.revision} archived={Boolean(arch.archivedAt)} characterCount={arch._count.characters} />
                   </td>
                 </tr>
               ))}
               {archetypes.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-[var(--ledger-ink-soft)]">
-                    No archetypes found. Create one to get started.
+                  <td colSpan={5} className="px-6 py-8 text-center text-[var(--ledger-ink-soft)]">
+                    {archived ? "No archived archetypes found." : "No archetypes found. Create one to get started."}
                   </td>
                 </tr>
               )}

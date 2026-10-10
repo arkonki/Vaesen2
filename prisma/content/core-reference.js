@@ -10,7 +10,7 @@ const legacyStats = { Academic:['logic','learning',1,3], Doctor:['precision','me
 const suggestionFields = ['firstNameOptions','lastNameOptions','motivationOptions','traumaOptions','darkSecretOptions','relationshipOptions'];
 const include = { startingTalents:{include:{talent:true}},equipmentGroups:{orderBy:{position:'asc'},include:{options:{include:{item:true}}}} };
 function canAdopt(record, definition) {
-  if (record.bookKey) return false;
+  if (record.bookKey || record.archivedAt) return false;
   const a=definition.archetype;
   const stats=[record.mainAttribute.toLowerCase(),record.mainSkill.toLowerCase(),record.startingResourcesMin,record.startingResourcesMax];
   const expected=[a.mainAttribute,a.mainSkill,a.startingResourcesMin,a.startingResourcesMax];

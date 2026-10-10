@@ -64,12 +64,12 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("archetype templates", () => {
   });
   it("rejects player template edits", async () => {
     state.actor = { id: ids.player, role: "PLAYER" };
-    await expect(updateArchetype(ids.archetype, input())).rejects.toThrow("Admin access required");
+    await expect(updateArchetype(ids.archetype, input(), template.revision)).rejects.toThrow("Admin access required");
   });
   it("rolls back invalid references and resource ranges", async () => {
     state.actor = { id: ids.admin, role: "ADMIN" };
-    await expect(updateArchetype(ids.archetype, { ...input(), name: "Invalid edit", equipmentGroups: [{ label: "Magic", quantity: 1, itemIds: [crypto.randomUUID()] }] })).rejects.toThrow("existing carried");
-    await expect(updateArchetype(ids.archetype, { ...input(), startingResourcesMin: 7 })).rejects.toThrow("Minimum resources");
+    await expect(updateArchetype(ids.archetype, { ...input(), name: "Invalid edit", equipmentGroups: [{ label: "Magic", quantity: 1, itemIds: [crypto.randomUUID()] }] }, template.revision)).rejects.toThrow("existing carried");
+    await expect(updateArchetype(ids.archetype, { ...input(), startingResourcesMin: 7 }, template.revision)).rejects.toThrow("Minimum resources");
     expect((await prisma.archetype.findUniqueOrThrow({ where: { id: ids.archetype } })).name).toBe(prefix);
     expect(await prisma.archetypeEquipmentGroup.count({ where: { archetypeId: ids.archetype } })).toBe(2);
   });
@@ -97,12 +97,12 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("archetype templates", () => {
   });
   it("allows a magic item only when the administrator configured that starting choice", async () => {
     state.actor = { id: ids.admin, role: "ADMIN" };
-    template = await updateArchetype(ids.archetype, { ...input(), equipmentGroups: [{ label: "Listed magical starter", quantity: 1, itemIds: [ids.magic] }] });
+    template = await updateArchetype(ids.archetype, { ...input(), equipmentGroups: [{ label: "Listed magical starter", quantity: 1, itemIds: [ids.magic] }] }, template.revision);
     state.actor = { id: ids.player, role: "PLAYER" };
     const id = await createPlayerCharacter({ ...characterInput(), equipmentChoices: { [template.equipmentGroups[0].id]: ids.magic } });
     expect(await prisma.characterInventory.findMany({ where: { characterId: id } })).toMatchObject([{ itemId: ids.magic, quantity: 1 }]);
     state.actor = { id: ids.admin, role: "ADMIN" };
-    template = await updateArchetype(ids.archetype, { ...input(), equipmentGroups: [] });
+    template = await updateArchetype(ids.archetype, { ...input(), equipmentGroups: [] }, template.revision);
     state.actor = { id: ids.player, role: "PLAYER" };
     await expect(createPlayerCharacter({ ...characterInput(), equipmentChoices: {} })).rejects.toThrow("Invalid starting equipment");
   });

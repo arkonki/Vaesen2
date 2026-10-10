@@ -31,6 +31,7 @@ export async function getPartyAccess(partyId: string) {
     include: {
       gm: { select: publicUserSelect },
       members: {
+        where: { character: { archivedAt: null } },
         include: {
           character: { select: partyCharacterSelect },
         },
@@ -96,6 +97,7 @@ export async function getCharacterAccess(characterId: string) {
   if (!isAdmin && !isOwner && !gmMembership) {
     redirect("/");
   }
+  if (character.archivedAt && !isAdmin && !isOwner) redirect("/characters");
 
   return {
     session,

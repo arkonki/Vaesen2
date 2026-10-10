@@ -4,10 +4,10 @@ import { equipmentInclude } from "@/lib/equipment";
 import { getAppSession } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import CharacterSheet from "./sheet";
+import Link from "next/link";
+import CharacterArchiveControl from "@/components/character-archive-control";
 import { getCharacterAdvancements } from "../actions";
-import CharacterCastleBenefits, {
-  type CharacterCastleBenefit,
-} from "@/components/character-castle-benefits";
+import type { CharacterCastleBenefit } from "@/components/character-castle-benefits";
 
 const PHYSICAL_KEYS = ["exhausted", "battered", "wounded", "broken"] as const;
 const MENTAL_KEYS = ["angry", "frightened", "hopeless", "broken"] as const;
@@ -82,6 +82,7 @@ export default async function CharacterSheetPage({
       archetype: true,
       attribute: true,
       skill: true,
+      _count: { select: { parties: true } },
       inventory: {
         include: {
           item: { include: equipmentInclude },
@@ -114,6 +115,10 @@ export default async function CharacterSheetPage({
 
   if (!isOwner && !isAdmin && !isGmWithAccess) {
     redirect("/");
+  }
+  if (character.archivedAt) {
+    if (!isOwner && !isAdmin) redirect("/characters");
+    return <main className="mx-auto max-w-3xl px-4 py-10 space-y-5"><Link href="/characters?view=archived" className="ledger-button">Back to Archived Characters</Link><section className="ledger-panel p-6 space-y-4"><p className="ledger-kicker">Archived Character</p><h1 className="text-3xl font-bold break-words">{character.name}</h1><p>{character.archetype.name} / XP {character.experiencePoints} / Resources {character.resources}</p><p>Archived on {character.archivedAt.toISOString().slice(0, 10)}. Your saved sheet, notes, relationships, conditions, advancement history, equipment, and party links are preserved. Restore to reopen the sheet.</p><CharacterArchiveControl id={id} name={character.name} version={character.archiveVersion} archived partyCount={character._count.parties} /></section></main>;
   }
 
   const canEdit = isOwner || isAdmin || isGmWithAccess;
@@ -172,6 +177,7 @@ export default async function CharacterSheetPage({
   const talentIds = parseStringArray(character.talents);
   const catalogueTalents = await prisma.talent.findMany({ select: { id: true, name: true, description: true, type: true }, orderBy: { name: "asc" } });
   const talents = catalogueTalents.filter(talent => talentIds.includes(talent.id));
+  const skillReferences = await prisma.skillDefinition.findMany();
 
   const inventory = [
     ...character.inventory,
@@ -189,24 +195,17 @@ export default async function CharacterSheetPage({
   return (
     <div className="min-h-screen px-3 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1500px]">
-        <CharacterCastleBenefits
-          benefits={castleBenefits}
-          physicalBase={
-            (character.attribute?.physique ?? 2) +
-            (character.attribute?.precision ?? 2)
-          }
-          mentalBase={
-            (character.attribute?.logic ?? 2) +
-            (character.attribute?.empathy ?? 2)
-          }
-        />
+        {(isOwner || isAdmin) && <div className="mb-4 flex flex-wrap justify-end gap-3"><Link href="/characters" className="ledger-button">Character Ledger</Link><CharacterArchiveControl id={id} name={character.name} version={character.archiveVersion} archived={false} partyCount={character._count.parties} /></div>}
         <CharacterSheet
+          skillReferences={skillReferences}
+          castleBenefits={castleBenefits}
           viewerId={session.user.id}
           characterId={character.id}
           canEdit={canEdit}
           name={character.name}
           ageGroup={character.ageGroup}
           archetypeName={character.archetype.name}
+          archetypeArchived={Boolean(character.archetype.archivedAt)}
           motivation={character.motivation}
           trauma={character.trauma}
           darkSecret={character.darkSecret}

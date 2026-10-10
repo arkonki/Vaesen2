@@ -77,7 +77,7 @@ const draftSchema = z.object({
 });
 
 export function firstIncompleteStep(data: WizardState, archetype?: ArchetypeTemplate) {
-  if (!data.archetypeId) return 1;
+  if (!data.archetypeId || archetype?.archivedAt) return 1;
   if (!data.ageGroup) return 2;
   if (!data.name.trim()) return 3;
   if (Object.values(data.attributes).reduce((a,b) => a+b,0) !== data.attributeAllowance || ATTRIBUTE_KEYS.some(key => data.attributes[key] > (normalizeRuleKey(key) === normalizeRuleKey(data.mainAttribute) ? 5 : 4))) return 4;
@@ -95,7 +95,7 @@ export function restoreCharacterDraft(raw: string, archetypes: ArchetypeTemplate
   const parsed = draftSchema.safeParse(input);
   if (!parsed.success) return null;
   const saved = parsed.data;
-  const arch = archetypes.find(a => a.id === saved.data.archetypeId);
+  const arch = archetypes.find(a => a.id === saved.data.archetypeId && !a.archivedAt);
   const age = saved.data.ageGroup;
   const allowance = age ? AGE_ALLOWANCES[age] : null;
   const data: WizardState = {

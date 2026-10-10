@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { ArchetypeTemplate } from "@/lib/archetype-template";
 import type { WizardStepProps } from "./wizard";
 
-export default function StepName({ data, update, archetype, onNext, onPrev }: WizardStepProps & { archetype?: ArchetypeTemplate }) {
+export default function StepName({ data, update, archetype }: WizardStepProps & { archetype?: ArchetypeTemplate }) {
   const [firstName, setFirstName] = useState(() => archetype?.firstNameOptions.find(name => data.name === name || data.name.startsWith(name + " ")) ?? "");
   const [lastName, setLastName] = useState(() => archetype?.lastNameOptions.find(name => data.name === name || data.name.endsWith(" " + name)) ?? "");
   return <div className="space-y-6">
@@ -17,6 +17,5 @@ export default function StepName({ data, update, archetype, onNext, onPrev }: Wi
       </select></label>
     </div>
     <label className="block font-semibold">Character Name<input autoComplete="off" className="ledger-input mt-2 w-full" value={data.name} maxLength={100} onChange={event => { setFirstName(""); setLastName(""); update({ name: event.target.value }); }} placeholder="Your hunter's full name" /></label>
-    <div className="flex flex-wrap justify-between gap-3 border-t border-[var(--ledger-line)] pt-5"><button type="button" className="ledger-button" onClick={onPrev}>Back</button><button type="button" className="ledger-button ledger-button-primary" disabled={!data.name.trim()} onClick={onNext}>Next: Attributes</button></div>
   </div>;
 }

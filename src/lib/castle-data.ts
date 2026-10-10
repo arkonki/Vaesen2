@@ -56,7 +56,7 @@ export async function loadCastleView(id: string): Promise<CastleView> {
   });
   if (!hq) redirect(`/parties/${id}/management`);
   const members = await prisma.partyMember.findMany({
-    where: { partyId: id },
+    where: { partyId: id, character: { archivedAt: null } },
     include: {
       character: {
         select: {

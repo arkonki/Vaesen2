@@ -4,6 +4,16 @@ A signed-in Vaesen character and campaign hub built with Next.js, NextAuth crede
 
 ## Development Setup
 
+### Guided Character Creation
+
+The eight-step wizard uses expandable archetype, talent, skill, and equipment references from the catalogue. Opening a reference never selects it. Short contextual help opens on mouse hover, keyboard focus, or tap and closes with Escape or an outside click. Desktop includes a live sheet preview; phones use an expandable preview and sticky navigation. Changing archetype or age requires confirmation when dependent choices exist, resets those choices, and preserves written background. Drafts retain the existing tab-scoped format; character creation remains server-validated. This interface update requires no migration or content import.
+
+### Session Character Sheet
+
+The sheet opens on **Play**, with separate **Equipment**, **Background**, and **Notes** tabs (Gear/Story labels on small phones). Tabs support arrow keys, Home, and End. XP stays in the identity header and expands on phones. Skill rules, talents, and equipment use expandable references and hover/focus/tap help; inspecting never changes the prepared roll. The desktop check builder stays beside the sheet, and phones have a persistent Edit/Roll dock.
+
+**Prepare** selects a skill and clears gear/manual/advantage/armor modifiers. Equipment **Use** selects one matching usage profile, including zero-bonus attacks. The gear bonus replaces, rather than stacks with, the manual gear bonus. Armor is selected explicitly for the current check, subtracts only its Agility penalty, and is not saved as worn equipment. Protection rolls are separate and have pushing disabled. Temporary castle gear is included without changing personal stock. Talents and narrative benefits still need GM judgment; no gear, ammunition, or doses are automatically spent. Broken remains separate from the three penalty conditions per domain. Notes and all relationships retain autosave and tab-scoped draft recovery across section changes. No migration or content import is needed for this redesign.
+
 Requires Node.js 22 or later and PostgreSQL, or Docker Compose. The app uses Prisma 6.19.3's engine-free PostgreSQL client; Prisma CLI operations still run on macOS/Linux in the FreeBSD deployment workflow.
 
 Create `.env` from `.env.example`, then configure:
@@ -243,6 +253,22 @@ For portable deployments, use `node scripts/import-core-reference.mjs` with opti
 Magical starting equipment is allowed only if an administrator has explicitly included it in the selected archetype's equipment groups. The unconfigured legacy fallback still excludes magic. Availability 0 on narrative starter gear means no independent purchase cost is specified, not free equipment. Special item risks, skill substitutions, healing, and talent effects remain player/GM-adjudicated rather than automatically applied.
 
 Content-import integration tests require separate fresh databases: `CONTENT_TEST_DATABASE_URL` for Academic and `CORE_CONTENT_TEST_DATABASE_URL` for the full reference import. Their names must end in `_test`; import fixtures deliberately refuse to reuse populated databases.
+
+### Safe Character Removal
+
+Characters can be removed by their owner or an administrator from the character ledger or sheet. Removal requires typing the exact character name and archives the record; no permanent character deletion is exposed. Use **Characters > Archived** to restore, or **All Archived (Admin)** to recover another user's character.
+
+Archived characters are excluded from Home, active party rosters, invitations, and HQ eligibility/benefit targets. They cannot edit sheets or spend XP. Saved notes, relationships, conditions, inventory, advancement history, memberships, invitations, and past HQ records remain stored. Party access through that character pauses until restoration; another active membership still grants access. Restoration preserves IDs and does not recreate party links that a GM separately removed. All shared campaign data stays unchanged.
+
+Apply the additive `20261010001000_character_archive` migration before running this release. No characters are automatically archived. Status changes use a version check and row locks shared with sheet mutations to reject duplicate/stale requests and serialize removal with autosaves.
+
+### Safe Archetype Maintenance
+
+Admin > Archetypes shows Active and Archived tabs, Core book / Custom labels, character usage counts, and Edit / Remove / Restore controls. Remove is recoverable archival, not permanent deletion. Type the exact name to confirm. Archived templates disappear from the compendium and character wizard; existing characters retain their original archetype relation, statistics, learned talents, and equipment. Talent and item definitions are not deleted. Restoration brings back the same template and links.
+
+Edits and archive/restore actions check a revision counter and reject stale tabs. Unchanged equipment groups retain their IDs. The server rejects new characters using an archived template, including stale wizard submissions. Core-reference reimports never restore archived book templates automatically.
+
+For an explicitly requested duplicate cleanup, preview `npm run db:content:dedupe-archetypes`, then add `-- --apply` to archive only custom/legacy names with a matching active core-book template. On FreeBSD use `node scripts/archive-duplicate-archetypes.mjs` with optional `--apply`. This is never run automatically by seeding. Apply `20261009220000_archetype_archive` before starting this release.
 
 ## Character Advancement
 

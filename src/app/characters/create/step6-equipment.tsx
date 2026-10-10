@@ -1,114 +1,28 @@
-import { type EquipmentItem, canCarryItem } from "@/lib/equipment";
-import CatalogueDetails from "@/components/equipment-details";
-type Item = EquipmentItem;
+import { useState } from "react";
+import { canCarryItem, typeName, type EquipmentItem } from "@/lib/equipment";
+import EquipmentDetails from "@/components/equipment-details";
+import CreationChoice from "@/components/creation-choice";
+import ReferenceHelp from "@/components/reference-help";
 import type { WizardStepProps } from "./wizard";
-import { resolveStartingEquipment, type ArchetypeTemplate } from "@/lib/archetype-template";
+import type { ArchetypeTemplate } from "@/lib/archetype-template";
 
-function EquipmentDetails({ item, included = false }: { item: Item; included?: boolean }) {
-  return <div className="block space-y-1 min-w-0">
-    <span className="block font-bold">{item.name}{included ? " - included" : ""}</span>
-    <CatalogueDetails item={item} />
-  </div>;
-}
-
-export default function Step6Equipment({ data, update, items, archetype, onSubmit, onPrev, loading }: Omit<WizardStepProps, "onNext"> & { items: Item[]; archetype?: ArchetypeTemplate; onSubmit: () => void; loading: boolean }) {
+export default function Step6Equipment({ data, update, items, archetype }: Omit<WizardStepProps, "onNext"> & { items: EquipmentItem[]; archetype?: ArchetypeTemplate; onSubmit: () => void; loading: boolean }) {
+  const [search, setSearch] = useState("");
   const groups = archetype?.equipmentGroups ?? [];
-  let complete = true;
-  try { if (groups.length && archetype) resolveStartingEquipment(archetype, data.equipmentChoices); } catch { complete = false; }
-
-  const toggleItem = (item: Item) => {
-    const exists = data.equipment.find((i) => i.id === item.id);
-    if (exists) {
-      update({ equipment: data.equipment.filter((i) => i.id !== item.id) });
-    } else {
-      update({ equipment: [...data.equipment, item] });
-    }
-  };
-
-  const gearItems = items.filter((i) => canCarryItem(i) && i.type === 'GEAR');
-  const weaponItems = items.filter((i) => i.type === 'WEAPON');
-  const armorItems = items.filter((i) => i.type === 'ARMOR');
-
-  return (
-    <div className="space-y-8 animate-in fade-in flex flex-col h-full">
-      <div>
-        <h2 className="text-2xl font-bold text-[var(--ledger-ink)] mb-2">Starting Equipment</h2>
-        <p className="text-[var(--ledger-ink-soft)]">{groups.length ? "Take the fixed equipment and choose one option from each alternative group." : "No starting equipment template is configured. Select non-magical gear with your GM's approval."}</p>
-        {groups.length > 0 && <p className="mt-2 text-sm text-[var(--ledger-ink-soft)]">Equipment bonuses apply only when the item helps with the described task. They are not added automatically to every skill roll.</p>}
-      </div>
-
-      {groups.length ? <div className="space-y-4">{groups.map(group => <fieldset key={group.id} className="ledger-panel p-4 min-w-0"><legend className="px-2 font-bold">{group.label} (x{group.quantity})</legend>
-        {group.options.length === 1 ? <EquipmentDetails item={group.options[0].item} included /> : <div className="grid gap-3 sm:grid-cols-2">{group.options.map(option => <label key={option.itemId} className="flex items-start gap-3 border border-[var(--ledger-line)] p-3 min-w-0">
-          <input type="radio" aria-label={option.item.name} className="mt-1 shrink-0" name={`equipment-${group.id}`} checked={data.equipmentChoices[group.id] === option.itemId} onChange={() => update({ equipmentChoices: { ...data.equipmentChoices, [group.id]: option.itemId } })} /><EquipmentDetails item={option.item} />
-        </label>)}</div>}
-      </fieldset>)}</div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-        {/* Weapons */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--ledger-danger)] border-b border-red-900/30 pb-1">Weapons</h3>
-          {weaponItems.map((item: Item) => {
-            const selected = !!data.equipment.find((i) => i.id === item.id);
-            return (
-              <button key={item.id}
-                   aria-pressed={selected} onClick={() => toggleItem(item)} className={`w-full text-left p-2 rounded border text-sm transition-colors ${selected ? 'bg-red-900/20 border-red-500/50 text-[var(--ledger-ink)]' : 'bg-[var(--ledger-paper)] border-[var(--ledger-line)]/55 text-[var(--ledger-ink-soft)] hover:border-[var(--ledger-line)]/55'}`}>
-                <div className="flex flex-wrap gap-3 justify-between items-center font-medium mb-1">
-                  <span>{item.name}</span>
-                  <span className="text-xs bg-[var(--ledger-paper-deep)] px-1 rounded">Dmg: {item.damage}</span>
-                </div>
-                {item.description && <p className="text-xs text-[var(--ledger-ink-soft)] line-clamp-1">{item.description}</p>}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Gear */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--ledger-accent)] border-b border-[var(--ledger-accent)]/65 pb-1">Gear</h3>
-          {gearItems.map((item: Item) => {
-            const selected = !!data.equipment.find((i) => i.id === item.id);
-            return (
-              <button key={item.id}
-                   aria-pressed={selected} onClick={() => toggleItem(item)} className={`w-full text-left p-2 rounded border text-sm transition-colors ${selected ? 'bg-[rgba(127,48,40,0.12)] border-[var(--ledger-accent)]/65 text-[var(--ledger-ink)]' : 'bg-[var(--ledger-paper)] border-[var(--ledger-line)]/55 text-[var(--ledger-ink-soft)] hover:border-[var(--ledger-line)]/55'}`}>
-                <div className="flex flex-wrap gap-3 justify-between items-center font-medium mb-1">
-                  <span>{item.name}</span>
-                  <span className="text-xs bg-[var(--ledger-paper-deep)] px-1 rounded">Avail: {item.availability}</span>
-                </div>
-                {item.description && <p className="text-xs text-[var(--ledger-ink-soft)] line-clamp-1">{item.description}</p>}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Armor & Magic */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--ledger-accent)] border-b border-[var(--ledger-accent)]/65 pb-1">Armor & Misc</h3>
-          {armorItems.map((item: Item) => {
-            const selected = !!data.equipment.find((i) => i.id === item.id);
-            return (
-              <button key={item.id}
-                   aria-pressed={selected} onClick={() => toggleItem(item)} className={`w-full text-left p-2 rounded border text-sm transition-colors ${selected ? 'bg-[rgba(127,48,40,0.12)] border-[var(--ledger-accent)]/65 text-[var(--ledger-ink)]' : 'bg-[var(--ledger-paper)] border-[var(--ledger-line)]/55 text-[var(--ledger-ink-soft)] hover:border-[var(--ledger-line)]/55'}`}>
-                <div className="flex flex-wrap gap-3 justify-between items-center font-medium mb-1">
-                  <span>{item.name}</span>
-                  <span className="text-xs bg-[var(--ledger-paper-deep)] px-1 rounded">Bonus: +{item.bonus}</span>
-                </div>
-                {item.description && <p className="text-xs text-[var(--ledger-ink-soft)] line-clamp-1">{item.description}</p>}
-              </button>
-            )
-          })}
-        </div>
-      </div>}
-
-      <div className="mt-8 flex flex-wrap gap-3 justify-between flex-grow items-end border-t border-[var(--ledger-line)]/55 pt-6">
-        <button onClick={onPrev} className="text-[var(--ledger-ink-soft)] hover:text-[var(--ledger-ink)] px-4 py-2 transition-colors">
-          Back
-        </button>
-        <button
-          onClick={onSubmit}
-          disabled={loading || !complete}
-          className="ledger-button ledger-button-primary"
-        >
-          {loading ? "Preparing..." : "Review Character"}
-        </button>
-      </div>
-    </div>
-  )
+  const available = items.filter(item => canCarryItem(item) && item.type !== "MAGIC" && `${item.name} ${typeName(item.type)}`.toLowerCase().includes(search.toLowerCase().trim()));
+  function toggle(item: EquipmentItem) {
+    const selected = data.equipment.some(entry => entry.id === item.id);
+    if (!selected && data.equipment.length >= 50) return;
+    update({ equipment: selected ? data.equipment.filter(entry => entry.id !== item.id) : [...data.equipment, item] });
+  }
+  return <div className="space-y-5">
+    <div className="flex items-center gap-2"><h2 className="creation-section-title">Tools of the trade</h2><ReferenceHelp label="Starting equipment">Equipment bonuses apply only when the item helps with the described task. They are not added to every roll. Read each item&apos;s profiles for applicable skills and requirements.</ReferenceHelp></div>
+    <p>{groups.length ? "Fixed equipment is included. Choose one item from each alternative group. Opening an item does not select it." : "No equipment template is configured. Choose non-magical equipment with your GM's approval."}</p>
+    {groups.length ? groups.map(group => <section key={group.id} className="space-y-2"><h3 className="creation-group-title">{group.label} x{group.quantity} / {group.options.length === 1 ? "Included" : "Choose one"}</h3>{group.options.map(option => <CreationChoice key={option.itemId} title={option.item.name} summary={typeName(option.item.type)} included={group.options.length === 1} selected={data.equipmentChoices[group.id] === option.itemId} onChoose={group.options.length > 1 ? () => update({ equipmentChoices: { ...data.equipmentChoices, [group.id]: option.itemId } }) : undefined}><EquipmentDetails item={option.item} /></CreationChoice>)}</section>) : <>
+      <label className="block font-bold text-sm">Find equipment<input type="search" className="ledger-input w-full mt-2" value={search} onChange={event => setSearch(event.target.value)} placeholder="Name or equipment type" /></label>
+      <p className="text-sm">{data.equipment.length}/50 equipment entries selected. Choose again to remove an entry.</p>
+      <div className="space-y-2">{available.map(item => <CreationChoice key={item.id} title={item.name} summary={typeName(item.type)} selected={data.equipment.some(entry => entry.id === item.id)} onChoose={() => toggle(item)}><EquipmentDetails item={item} /></CreationChoice>)}</div>
+      {!available.length && <p className="ledger-status">No matching equipment.</p>}
+    </>}
+  </div>;
 }

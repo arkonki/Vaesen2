@@ -4,6 +4,7 @@ import { createPrismaClient } from "../prisma/client.js";
 import { archetypeTemplateInclude, resolveStartingEquipment, startingTalentsFor } from "../src/lib/archetype-template";
 const require=createRequire(import.meta.url);
 const {installCoreReference}=require("../prisma/content/core-reference");
+const {archiveDuplicateArchetypes}=require("../prisma/content/archetype-cleanup");
 const {importEquipment}=require("../prisma/content/equipment");
 const {archetypes}=require("../prisma/content/archetypes.json");
 const {descriptions}=require("../prisma/content/archetype-talents");
@@ -78,5 +79,28 @@ describe.skipIf(!p)("core reference import preservation",()=>{
     expect(after.equipmentGroups).toEqual(t.equipmentGroups);expect(after.motivationOptions).toEqual(['Custom motive']);
     expect(await p!.skillDefinition.findUniqueOrThrow({where:{key:'medicine'}})).toMatchObject({description:'My campaign medical ruling'});
     expect(await p!.talent.findUniqueOrThrow({where:{id:talent.id}})).toMatchObject({description:'My talent ruling'});
+  });
+  it("does not resurrect an archived book template on reimport",async()=>{
+    await p!.archetype.update({where:{bookKey:'core-archetype-hunter'},data:{archivedAt:new Date(),revision:{increment:1}}});
+    expect((await installCoreReference(p,{apply:true})).changes).toEqual([]);
+    expect((await p!.archetype.findUniqueOrThrow({where:{bookKey:'core-archetype-hunter'}})).archivedAt).not.toBeNull();
+  });
+  it("previews and archives only duplicates of active book templates without deleting data",async()=>{
+    const unique=await p!.archetype.create({data:{name:'Campaign Custom',mainAttribute:'logic',mainSkill:'learning'}});
+    const hunter=await p!.archetype.create({data:{name:'Hunter',mainAttribute:'precision',mainSkill:'rangedCombat'}});
+    const character=await p!.character.findUniqueOrThrow({where:{id:charId}});
+    const before=await p!.archetype.findMany({orderBy:{id:'asc'}});
+    const preview=await archiveDuplicateArchetypes(p);
+    expect(preview.applied).toBe(false);
+    expect(preview.changes.map((r:{id:string})=>r.id)).toEqual([customId]);
+    expect(await p!.archetype.findMany({orderBy:{id:'asc'}})).toEqual(before);
+    const applied=await archiveDuplicateArchetypes(p,{apply:true});
+    expect(applied.applied).toBe(true);
+    expect((await p!.archetype.findUniqueOrThrow({where:{id:customId}})).archivedAt).not.toBeNull();
+    expect(await p!.archetype.count()).toBe(before.length);
+    expect(await p!.archetype.findUniqueOrThrow({where:{id:unique.id}})).toEqual(unique);
+    expect(await p!.archetype.findUniqueOrThrow({where:{id:hunter.id}})).toEqual(hunter);
+    expect(await p!.character.findUniqueOrThrow({where:{id:charId}})).toEqual(character);
+    expect((await archiveDuplicateArchetypes(p,{apply:true})).changes).toEqual([]);
   });
 });

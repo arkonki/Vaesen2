@@ -3,7 +3,6 @@
 import { canCarryItem } from "@/lib/equipment";
 import type { Item, Talent } from "@prisma/client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createArchetype, updateArchetype } from "@/app/admin/actions";
 import { ATTRIBUTE_KEYS, SKILL_KEYS, normalizeRuleKey } from "@/lib/character-rules";
@@ -17,11 +16,10 @@ const optionFields = [
 const displayKey = (key: string) => key.replace(/([A-Z])/g, " $1");
 
 export default function ArchetypeForm({ archetype, talents, items }: { archetype?: ArchetypeTemplate | null; talents: Talent[]; items: Item[] }) {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [talentIds, setTalentIds] = useState(archetype?.startingTalents?.map(entry => entry.talentId) ?? []);
-  const [groups, setGroups] = useState(archetype?.equipmentGroups?.map(group => ({ label: group.label, quantity: group.quantity, itemIds: group.options.map(option => option.itemId) })) ?? []);
+  const [groups, setGroups] = useState<Array<{ id?: string; label: string; quantity: number; itemIds: string[] }>>(archetype?.equipmentGroups?.map(group => ({ id: group.id, label: group.label, quantity: group.quantity, itemIds: group.options.map(option => option.itemId) })) ?? []);
   const eligibleTalents = talents.filter(talent => talent.type === "GENERAL" || talent.archetypeId === archetype?.id);
   const inputClass = "ledger-input w-full mt-2";
 
@@ -37,9 +35,9 @@ export default function ArchetypeForm({ archetype, talents, items }: { archetype
         ...Object.fromEntries(optionFields.map(([key]) => [key, suggestionLines(String(form.get(key) ?? ""))])),
         startingTalentIds: talentIds, equipmentGroups: groups,
       });
-      if (archetype) await updateArchetype(archetype.id, data);
+      if (archetype) await updateArchetype(archetype.id, data, archetype.revision);
       else await createArchetype(data);
-      router.push("/admin/archetypes"); router.refresh();
+      window.location.assign("/admin/archetypes");
     } catch (error) { setSaveError(error instanceof Error ? error.message : "The archetype could not be saved."); }
     finally { setLoading(false); }
   }
@@ -49,6 +47,7 @@ export default function ArchetypeForm({ archetype, talents, items }: { archetype
   }
 
   return <form onSubmit={handleSubmit} aria-busy={loading} className="space-y-6">
+    <p className="ledger-status">Template edits do not change existing character scores, learned talents, or inventory. {archetype?.archivedAt ? "This entry is archived; restore it before using it for new characters." : "Other open editing tabs must reload after you save."}</p>
     {saveError && <p role="alert" className="ledger-status">{saveError}</p>}
     <fieldset disabled={loading} className="space-y-6 min-w-0">
       <section className="space-y-4">

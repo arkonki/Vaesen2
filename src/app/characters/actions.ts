@@ -9,6 +9,7 @@ import { z } from "zod";
 import { archetypeTemplateInclude, resolveStartingEquipment, startingTalentsFor } from "@/lib/archetype-template";
 import type { Prisma } from "@prisma/client";
 import { ADVANCE_XP_COST, MAX_SKILL_RANK, advancementSchema, ownedTalentIds, skillLabel } from "@/lib/advancement-rules";
+import { setCharacterArchived } from "@/lib/character-lifecycle";
 
 type ConditionMap = Record<string, boolean>;
 
@@ -25,15 +26,17 @@ async function requireSession() {
 
 async function requireCharacterAccess(characterId: string, db: Prisma.TransactionClient = prisma, actor?: Awaited<ReturnType<typeof requireSession>>) {
   const session = actor ?? await requireSession();
+  if (db !== prisma) await db.$queryRaw`SELECT id FROM "Character" WHERE id = ${characterId} FOR UPDATE`;
 
   const character = await db.character.findUnique({
     where: { id: characterId },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, archivedAt: true },
   });
 
   if (!character) {
     throw new Error("Character not found");
   }
+  if (character.archivedAt) throw new Error("This character is archived. Restore it before editing.");
 
   if (session.user.role === "ADMIN" || character.userId === session.user.id) {
     return { session, character };
@@ -77,7 +80,10 @@ export async function createPlayerCharacter(input: unknown) {
 
   // DB Transaction to ensure atomicity
   const character = await prisma.$transaction(async (tx) => {
+    // Serialize creation against template edits/removal; never create from an archived entry.
+    await tx.$queryRaw`SELECT id FROM "Archetype" WHERE id = ${data.archetypeId} FOR SHARE`;
     const archetype = await tx.archetype.findUniqueOrThrow({ where: { id: data.archetypeId }, include: archetypeTemplateInclude });
+    if (archetype.archivedAt) throw new Error("This archetype was removed from the catalogue. Choose another archetype.");
     validateCharacterAllocation(data, archetype);
     const talent = await tx.talent.findUniqueOrThrow({ where: { id: data.talentId } });
     if (!startingTalentsFor(archetype, [talent]).length) {
@@ -157,18 +163,20 @@ export async function updateCharacterConditions(
   characterId: string,
   data: { physicalConditions?: unknown; mentalConditions?: unknown }
 ) {
-  await requireCharacterAccess(characterId);
-
   const physicalConditions = normalizeConditionMap(data.physicalConditions, PHYSICAL_CONDITION_KEYS);
   const mentalConditions = normalizeConditionMap(data.mentalConditions, MENTAL_CONDITION_KEYS);
 
-  const character = await prisma.character.update({
+  const session = await requireSession();
+  const character = await prisma.$transaction(async tx => {
+    await requireCharacterAccess(characterId, tx, session);
+    return tx.character.update({
     where: { id: characterId },
     data: {
       ...(data.physicalConditions !== undefined ? { physicalConditions } : {}),
       ...(data.mentalConditions !== undefined ? { mentalConditions } : {}),
     },
     select: { id: true },
+    });
   });
 
   revalidatePath(`/characters/${character.id}`);
@@ -269,7 +277,7 @@ export async function tryPurchaseCharacterAdvancement(characterId: string, input
       "This sheet has changed. Refresh before spending XP.", "You need 5 unspent XP for an Advance.", "Skills cannot advance beyond 5.",
       "This character has no skill record. Ask an administrator to repair the sheet.", "This skill has changed. Refresh before advancing it.",
       "This talent no longer exists. Refresh the available talents.", "You already know this talent.",
-      "This character has legacy talent data that needs review before learning a talent."];
+      "This character has legacy talent data that needs review before learning a talent.", "This character is archived. Restore it before editing."];
     return { ok: false as const, error: error instanceof z.ZodError ? "Invalid advancement request." : error instanceof Error && safeMessages.includes(error.message)
       ? error.message : "The Advance could not be confirmed. Retry the same choice or refresh the sheet." };
   }
@@ -279,17 +287,29 @@ export async function updateCharacterJournal(
   characterId: string,
   data: { notes?: string; relationships?: string }
 ) {
-  await requireCharacterAccess(characterId);
   const journal = z.object({ notes: z.string().max(50000).optional(), relationships: z.string().max(50000).optional() }).parse(data);
-
-  const character = await prisma.character.update({
+  const session = await requireSession();
+  const character = await prisma.$transaction(async tx => {
+    await requireCharacterAccess(characterId, tx, session);
+    return tx.character.update({
     where: { id: characterId },
     data: {
       ...journal,
     },
     select: { id: true, notes: true, relationships: true },
+    });
   });
 
   revalidatePath(`/characters/${character.id}`);
   return character;
+}
+
+export async function archiveCharacter(input: unknown) {
+  const result = await setCharacterArchived(input);
+  revalidatePath("/");
+  revalidatePath("/characters");
+  revalidatePath(`/characters/${result.id}`);
+  revalidatePath("/parties");
+  for (const id of result.partyIds) revalidatePath(`/parties/${id}`, "layout");
+  return { id: result.id };
 }
